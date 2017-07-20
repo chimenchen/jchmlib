@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Implementation-Title: jchmlib
+Implementation-Version: 0.2
+Main-Class: org.jchmlib.app.ChmWeb

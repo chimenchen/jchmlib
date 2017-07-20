@@ -1,0 +1,23 @@
+apply plugin: "java"
+archivesBaseName = "jchmlib"
+version = "0.2"
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ["src"]
+        }
+        resources {
+            srcDirs = ["resources"]
+        }
+    }
+}
+
+jar {
+    manifest {
+        attributes(
+                "Implementation-Title": "jchmlib",
+                "Implementation-Version": version,
+                "Main-Class": "org.jchmlib.app.ChmWeb")
+    }
+}
