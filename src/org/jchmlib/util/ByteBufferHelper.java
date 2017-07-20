@@ -27,6 +27,15 @@ public class ByteBufferHelper {
         return result;
     }
 
+    public static long getUInt32(ByteBuffer bb) {
+        ByteOrder origOrder = bb.order();
+        bb.order(ByteOrder.LITTLE_ENDIAN);
+        int tmp = bb.getInt();
+        long result = tmp & 0x00000000ffffffffL;
+        bb.order(origOrder);
+        return result;
+    }
+
     /**
      * parse a compressed dword (a variant length integer)
      */

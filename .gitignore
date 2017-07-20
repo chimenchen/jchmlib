@@ -27,4 +27,5 @@ app.properties
 out/
 build/
 .gradle/
+logging.properties
 

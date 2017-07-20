@@ -531,7 +531,6 @@ public class ChmFile {
                 }
                 // this is necessary!
                 lzxInflator.decompress(buf0,
-                        (int) (resetTable[curBlockIdx + 1] - resetTable[curBlockIdx]),
                         block_len);
             }
         } else {
@@ -547,7 +546,6 @@ public class ChmFile {
         }
 
         return lzxInflator.decompress(buf0,
-                (int) (resetTable[block + 1] - resetTable[block]),
                 block_len);
     }
 
