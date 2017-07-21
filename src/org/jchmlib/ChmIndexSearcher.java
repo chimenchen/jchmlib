@@ -1,55 +1,74 @@
 package org.jchmlib;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.jchmlib.util.BitReader;
 import org.jchmlib.util.ByteBufferHelper;
-import org.jchmlib.util.GBKHelper;
 
 
 public class ChmIndexSearcher {
 
     private static final Logger LOGGER = Logger.getLogger(ChmIndexSearcher.class.getName());
 
-    private ChmFile chmFile;
-    private String text;
-    private byte[] textAsBytes;
-    private HashMap<String, String> results;
+    private final ChmFile chmFile;
+    public boolean notSearchable = false;
+    private byte[] queryAsBytes;
     private ChmUnitInfo uiMain;
     private ChmUnitInfo uiTopics;
     private ChmUnitInfo uiUrlTbl;
     private ChmUnitInfo uiStrings;
     private ChmUnitInfo uiUrlStr;
-    private ChmFtsHeader header;
+    private ChmFtsHeader ftsHeader = null;
+    private WordBuilder wordBuilder = null;
+    private ArrayList<IndexSearchResult> results;
 
     public ChmIndexSearcher(ChmFile chmFile) {
         this.chmFile = chmFile;
     }
 
     public HashMap<String, String> getResults() {
-        return results;
+        if (results == null) {
+            return null;
+        }
+
+        results.sort(new Comparator<IndexSearchResult>() {
+            @Override
+            public int compare(IndexSearchResult r1, IndexSearchResult r2) {
+                return new Integer(r2.count).compareTo(new Integer(r1.count));
+            }
+        });
+
+        HashMap<String, String> finalResults = new LinkedHashMap<>();
+        for (IndexSearchResult result : results) {
+            LOGGER.log(Level.FINE, "#" + result.count + " " + result.topic + " <=> " + result.url);
+            finalResults.put(result.url, result.topic);
+        }
+        return finalResults;
     }
 
-    public void search(String keyword, boolean wholeWords,
-            boolean titlesOnly) throws IOException {
+    // FIXME: improve support for CJK.
+    // there are words for CJK characters (each with only one CJK characters),
+    // rather than for CJK words (each with multiple CJK characters).
+    public void search(String query, boolean wholeWords, boolean titlesOnly) throws IOException {
+        results = null;
 
-        byte word_len, pos;
-        String word = null;
-        byte[] wordBytes = null;
-
-        if (keyword.equals("")) {
+        if (notSearchable) {
             return;
         }
 
-        text = keyword.toLowerCase();
-        textAsBytes = text.getBytes(chmFile.codec);
-
-        LOGGER.log(Level.FINE, " <=> query " + text);
+        if (query == null || query.equals("")) {
+            return;
+        }
+        LOGGER.log(Level.FINE, " <=> query " + query);
+        queryAsBytes = query.toLowerCase().getBytes(chmFile.codec);
 
         uiMain = chmFile.resolveObject("/$FIftiMain");
         uiTopics = chmFile.resolveObject("/#TOPICS");
@@ -60,295 +79,222 @@ public class ChmIndexSearcher {
         if (uiMain == null || uiTopics == null || uiUrlTbl == null
                 || uiStrings == null || uiUrlStr == null) {
             LOGGER.log(Level.FINE, "This CHM file is unsearchable.");
+            notSearchable = true;
             return;
         }
 
-        ByteBuffer buf = chmFile.retrieveObject(uiMain,
-                0,
-                ChmFile.FTS_HEADER_LEN);
-        if (buf == null) {
-            return;
-        }
-        buf.order(ByteOrder.LITTLE_ENDIAN);
-        header = new ChmFtsHeader(buf);
+        if (ftsHeader == null) {
+            ByteBuffer bufFtsHeader = chmFile.retrieveObject(uiMain, 0, ChmFile.FTS_HEADER_LEN);
+            if (bufFtsHeader == null) {
+                notSearchable = true;
+                return;
+            }
+            bufFtsHeader.order(ByteOrder.LITTLE_ENDIAN);
 
-        if (header.doc_index_s != 2 || header.code_count_s != 2
-                || header.loc_codes_s != 2) {
-            return;
+            ftsHeader = new ChmFtsHeader(bufFtsHeader);
+            if (ftsHeader.docIndexS != 2 || ftsHeader.codeCountS != 2
+                    || ftsHeader.locCodesS != 2) {
+                notSearchable = true;
+                return;
+            }
         }
 
-        int node_offset = getLeafNodeOffset();
-        if (node_offset == 0) {
+        int nodeOffset = getLeafNodeOffset();
+        if (nodeOffset == 0) {
             return;
         }
 
         do {
             // get a leaf node here
-            buf = chmFile.retrieveObject(uiMain,
-                    node_offset,
-                    header.node_len);
-            if (buf == null) {
+            ByteBuffer bufLeafNode = chmFile.retrieveObject(uiMain, nodeOffset, ftsHeader.nodeLen);
+            if (bufLeafNode == null) {
                 return;
             }
-            buf.order(ByteOrder.LITTLE_ENDIAN);
-
-            long wlc_count, wlc_size;
-            int wlc_offset;
-
-            // The leaf nodes begin with a short header,
-            // which is followed by entries:
+            bufLeafNode.order(ByteOrder.LITTLE_ENDIAN);
 
             // Leaf node header
-            // Offset Type Comment/Value
-            // 0 DWORD Offset to the next leaf node.
-            // 0 if this is the last leaf node.
-            // 4 WORD 0 (unknown)
-            // 6 WORD Length of free space at the end
-            // of the current leaf node.
-            node_offset = buf.getInt();
-            buf.getShort();
-            short free_space = buf.getShort();
-            buf.limit(header.node_len - free_space);
-            while (buf.hasRemaining()) {
-                word_len = buf.get();
-                pos = buf.get();
+            nodeOffset = bufLeafNode.getInt();  // offset to the next leaf node
+            ByteBufferHelper.skip(bufLeafNode, 2);
+            // length of free space at the end of the current leaf node
+            short freeSpace = bufLeafNode.getShort();
 
-                byte[] tempWordBytes = new byte[word_len - 1];
-                buf.get(tempWordBytes);
-
-                if (pos == 0) {
-                    wordBytes = tempWordBytes;
-                    word = new String(tempWordBytes, chmFile.codec);
-                } else {
-                    byte[] newWordBytes = new byte[pos + word_len - 1];
-                    int j;
-                    for (j = 0; j < pos; j++) {
-                        assert wordBytes != null;
-                        newWordBytes[j] = wordBytes[j];
-                    }
-                    for (j = 0; j < word_len - 1; j++) {
-                        newWordBytes[pos + j] = tempWordBytes[j];
-                    }
-                    wordBytes = newWordBytes;
-                    word = new String(newWordBytes, chmFile.codec);
-                }
-
-                LOGGER.log(Level.FINE, " <=> word " + word);
+            bufLeafNode.limit(ftsHeader.nodeLen - freeSpace);
+            initWordBuilder();
+            while (bufLeafNode.hasRemaining()) {
+                // get a word
+                int wordLen = bufLeafNode.get();
+                int pos = bufLeafNode.get();
+                wordBuilder.readWord(bufLeafNode, pos, wordLen);
+                LOGGER.log(Level.FINE, " <=> word " + wordBuilder.getWord());
 
                 // Context (0 for body tag, 1 for title tag)
-                byte context = buf.get();
-                wlc_count = ByteBufferHelper.parseCWord(buf);
-                wlc_offset = buf.getInt();
-                buf.getShort();
-                wlc_size = ByteBufferHelper.parseCWord(buf);
+                byte context = bufLeafNode.get();
+                long wlcCount = ByteBufferHelper.parseCWord(bufLeafNode);
+                int wlcOffset = bufLeafNode.getInt();
+                ByteBufferHelper.skip(bufLeafNode, 2);
+                long wlcSize = ByteBufferHelper.parseCWord(bufLeafNode);
 
                 if ((context == 0) && titlesOnly) {
                     continue;
                 }
 
-                // if (wholeWords && text.compareToIgnoreCase(word) == 0 ) {
-                // int cmpResult = GBKHelper.compare(text, word);
-                int cmpResult = GBKHelper.compareBytes(textAsBytes, wordBytes);
+                int cmpResult = wordBuilder.compareWith(queryAsBytes);
                 if (cmpResult == 0) {
-                    LOGGER.log(Level.FINE, "!" + word + "!");
-                    ProcessWLC(wlc_count, wlc_size, wlc_offset);
+                    LOGGER.log(Level.FINE, "!found!");
+                    ProcessWlcBlock(wlcCount, wlcSize, wlcOffset);
                     return;
-                } else {
-                    if (cmpResult < 0) {
+                } else if (cmpResult > 0) {
+                    if (!wholeWords && wordBuilder.startsWith(queryAsBytes)) {
+                        ProcessWlcBlock(wlcCount, wlcSize, wlcOffset);
+                    } else {
                         return;
                     }
                 }
+            }
+        } while (!wholeWords && wordBuilder.wordLength > 0 &&
+                wordBuilder.startsWith(queryAsBytes) && nodeOffset != 0);
+    }
 
-                if (!wholeWords && word.startsWith(text)) {
-                    ProcessWLC(wlc_count, wlc_size, wlc_offset);
+    public void initWordBuilder() {
+        if (wordBuilder == null) {
+            if (ftsHeader != null && chmFile != null) {
+                wordBuilder = new WordBuilder(ftsHeader.maxWordLen, chmFile.codec);
+            }
+        } else {
+            wordBuilder.wordLength = 0;
+        }
+    }
+
+    private int getLeafNodeOffset() throws IOException {
+        int lastNodeOffset = 0;
+        int nodeOffset = ftsHeader.nodeOffset;
+        int buffSize = ftsHeader.nodeLen;
+        short treeDepth = ftsHeader.treeDepth;
+
+        while ((--treeDepth) != 0) {
+            if (nodeOffset == lastNodeOffset) {
+                return 0;
+            }
+
+            lastNodeOffset = nodeOffset;
+
+            ByteBuffer bufIndexNode = chmFile.retrieveObject(uiMain, nodeOffset, buffSize);
+            if (bufIndexNode == null) {
+                return 0;
+            }
+            bufIndexNode.order(ByteOrder.LITTLE_ENDIAN);
+
+            // the length of free space at the end of the node.
+            short freeSpace = bufIndexNode.getShort();
+            bufIndexNode.limit(buffSize - freeSpace);
+
+            initWordBuilder();
+            while (bufIndexNode.hasRemaining()) {
+                int wordLen = bufIndexNode.get();
+                int pos = bufIndexNode.get();
+                wordBuilder.readWord(bufIndexNode, pos, wordLen);
+                LOGGER.log(Level.FINE, " <=> word " + wordBuilder.getWord());
+
+                int cmpResult = wordBuilder.compareWith(queryAsBytes);
+                if (cmpResult >= 0) {
+                    LOGGER.log(Level.FINE, "!found index node");
+                    // Offset of the leaf node whose last entry is this word
+                    nodeOffset = bufIndexNode.getInt();
+                    break;
+                } else {
+                    ByteBufferHelper.skip(bufIndexNode, 6);
                 }
             }
         }
-        while (!wholeWords && word != null && word.startsWith(text)
-                && node_offset != 0);
 
+        if (nodeOffset == lastNodeOffset) {
+            return 0;
+        }
+
+        return nodeOffset;
     }
 
-    private void ProcessWLC(long wlc_count, long wlc_size,
-            int wlc_offset) throws IOException {
-        int wlc_bit = 7;  // FIXME: const?
-        long index = 0, count;
-        int off = 0;
-        int stroff, urloff;
-        int j;
-        byte tmp;
-
-        ByteBuffer buffer = chmFile.retrieveObject(uiMain, wlc_offset, wlc_size);
-        if (buffer == null) {
+    private void ProcessWlcBlock(long wlcCount, long wlcSize, int wlcOffset) throws IOException {
+        ByteBuffer bufWlcBlock = chmFile.retrieveObject(uiMain, wlcOffset, wlcSize);
+        if (bufWlcBlock == null) {
             LOGGER.log(Level.FINE, "Can't retrieve object:" + uiMain.path);
             return;
         }
-        buffer.order(ByteOrder.LITTLE_ENDIAN);
+        bufWlcBlock.order(ByteOrder.LITTLE_ENDIAN);
 
-        for (long i = 0; i < wlc_count; i++) {
-            if (wlc_bit != 7) {
-                ++off;
-                wlc_bit = 7;
+        long docIndex = 0;
+        for (long i = 0; i < wlcCount; i++) {
+            BitReader bitReader = new BitReader(bufWlcBlock, false);
+            docIndex += bitReader.getSrInt(ftsHeader.docIndexS, ftsHeader.docIndexR);
+
+            // locations of the word in the topics
+            long locationCodeCount = bitReader.getSrInt(
+                    ftsHeader.codeCountS, ftsHeader.codeCountR);
+            for (int j = 0; j < locationCodeCount; j++) {
+                // move forward. result not used
+                bitReader.getSrInt(ftsHeader.locCodesS, ftsHeader.locCodesR);
             }
 
-            BitReader bitReader = new BitReader(buffer, false);
-            index += ByteBufferHelper.sr_int(bitReader,
-                    wlc_bit,
-                    header.doc_index_s,
-                    header.doc_index_r);
-            ByteBuffer entry = chmFile.retrieveObject(uiTopics, index * 16, 16);
+            ByteBuffer entry = chmFile.retrieveObject(uiTopics, docIndex * 16, 16);
             if (entry == null) {
-                LOGGER.log(Level.FINE, "Can't retrieve object:"
-                        + uiTopics.path);
+                LOGGER.log(Level.FINE, "Can't retrieve object:" + uiTopics.path);
                 return;
             }
             entry.order(ByteOrder.LITTLE_ENDIAN);
             entry.getInt();
-            stroff = entry.getInt();
+            int strOffset = entry.getInt();
+            int urlOffset = entry.getInt();
 
             String topic;
-
-            ByteBuffer combuf = chmFile.retrieveObject(uiStrings, stroff, 1024);
-            if (combuf == null) {
+            ByteBuffer bufStrings = chmFile.retrieveObject(uiStrings, strOffset, 1024);
+            if (bufStrings == null) {
                 topic = null;
             } else {
-                int size = combuf.capacity();
-                byte[] bytebuf = new byte[size];
-                j = 0;
-                while ((tmp = combuf.get()) != 0) {
-                    bytebuf[j] = tmp;
-                    j++;
-                }
-                topic = new String(bytebuf, 0, j, chmFile.codec);
+                topic = ByteBufferHelper.parseString(bufStrings, chmFile.codec);
             }
 
-            urloff = entry.getInt();
-
-            combuf = chmFile.retrieveObject(uiUrlTbl, urloff, 12);
-            if (combuf == null) {
+            ByteBuffer bufUrlTable = chmFile.retrieveObject(uiUrlTbl, urlOffset, 12);
+            if (bufUrlTable == null) {
                 return;
             }
+            bufUrlTable.order(ByteOrder.LITTLE_ENDIAN);
+            ByteBufferHelper.skip(bufUrlTable, 8); // bufUrlTable.getInt(); // bufUrlTable.getInt();
+            int urlStrOffset = bufUrlTable.getInt();
 
-            combuf.order(ByteOrder.LITTLE_ENDIAN);
-            combuf.getInt();
-            combuf.getInt();
-            urloff = combuf.getInt();
-
-            combuf = chmFile.retrieveObject(uiUrlStr,
-                    urloff + 8,
-                    1024);
-            if (combuf == null) {
+            ByteBuffer bufUrlStr = chmFile.retrieveObject(uiUrlStr, urlStrOffset + 8, 1024);
+            if (bufUrlStr == null) {
                 return;
             }
-
-            byte[] bytebuf = new byte[1024];
-            j = 0;
-            while ((tmp = combuf.get()) != 0) {
-                bytebuf[j] = tmp;
-                j++;
+            String url = ByteBufferHelper.parseString(bufUrlStr, chmFile.codec);
+            if (url == null) {
+                return;
             }
-            String url = new String(bytebuf, 0, j, chmFile.codec);
 
             if (topic == null || topic.length() == 0) {
                 topic = url;
             }
 
             if (!url.equals("") && !topic.equals("")) {
-                if (!addResult(url, topic)) {
+                if (!addResult(url, topic, (int) locationCodeCount)) {
                     return;
                 }
             }
 
-            count = ByteBufferHelper.sr_int(bitReader,
-                    wlc_bit,
-                    header.code_count_s,
-                    header.code_count_r);
-            for (j = 0; j < count; j++) {
-                ByteBufferHelper.sr_int(bitReader,
-                        wlc_bit,
-                        header.loc_codes_s,
-                        header.loc_codes_r);
-            }
         }
     }
 
-    // FIXME: some codes duplicated with ProcessWLC
-    private int getLeafNodeOffset() throws IOException {
-        int test_offset = 0;
-        byte word_len, pos;
-        String word = null;
-        byte[] wordBytes = null;
-        int initialOffset = header.node_offset;
-        int buffSize = header.node_len;
-        short treeDepth = header.tree_depth;
-
-        while ((--treeDepth) != 0) {
-            if (initialOffset == test_offset) {
-                return 0;
-            }
-
-            test_offset = initialOffset;
-
-            ByteBuffer buf = chmFile.retrieveObject(uiMain,
-                    initialOffset,
-                    buffSize);
-            if (buf == null) {
-                return 0;
-            }
-            buf.order(ByteOrder.LITTLE_ENDIAN);
-
-            // The index nodes begin with a WORD indicating the
-            // length of free space at the end of the node.
-            // This is followed by the entries, which fill up
-            // as much of the index node as possible.
-            short free_space = buf.getShort();
-            buf.limit(buffSize - free_space);
-            while (buf.hasRemaining()) {
-                word_len = buf.get();
-                pos = buf.get();
-
-                byte[] tempWordBytes = new byte[word_len - 1];
-                buf.get(tempWordBytes);
-
-                if (pos == 0) {
-                    wordBytes = tempWordBytes;
-                    word = new String(wordBytes, chmFile.codec);
-                } else {
-                    assert word != null && wordBytes != null;
-                    byte[] newWordBytes = new byte[tempWordBytes.length + pos];
-                    System.arraycopy(wordBytes, 0, newWordBytes, 0, pos);
-                    System.arraycopy(tempWordBytes, 0, newWordBytes, pos, tempWordBytes.length);
-                    wordBytes = newWordBytes;
-                    word = new String(wordBytes, chmFile.codec);
-                }
-
-                LOGGER.log(Level.FINE, " <=> word " + word);
-
-                int cmpResult = GBKHelper.compareBytes(textAsBytes, wordBytes);
-                if (cmpResult <= 0) {
-                    LOGGER.log(Level.FINE, "!!" + word);
-                    initialOffset = buf.getInt();
-                    break;
-                }
-
-                buf.getInt();
-                buf.getShort();
-            }
-        }
-
-        if (initialOffset == test_offset) {
-            return 0;
-        }
-
-        return initialOffset;
-    }
-
-    private boolean addResult(String url, String topic) {
+    private boolean addResult(String url, String topic, int count) {
         if (results == null) {
-            results = new LinkedHashMap<String, String>();
+            // results = new LinkedHashMap<>();
+            results = new ArrayList<>();
         }
         if (results.size() < 100) {
-            results.put(url, topic);
+            // results.put(url, topic);
+            IndexSearchResult result = new IndexSearchResult();
+            result.url = url;
+            result.topic = topic;
+            result.count = count;
+            results.add(result);
             return true;
         } else {
             LOGGER.log(Level.FINE, "Too many results.");
@@ -356,4 +302,77 @@ public class ChmIndexSearcher {
         }
     }
 
+    class IndexSearchResult {
+
+        String url;
+        String topic;
+        int count;
+    }
+
+    class WordBuilder {
+
+        byte[] wordBuffer;
+        int wordLength;
+        String codec;
+
+        WordBuilder(int maxWordLength, String codec) {
+            wordBuffer = new byte[maxWordLength];
+            wordLength = 0;
+            this.codec = codec;
+        }
+
+        void readWord(ByteBuffer bb, int pos, int len) {
+            len -= 1;
+            bb.get(wordBuffer, pos, len);
+            wordLength = pos + len;
+        }
+
+        private int toUInt8(byte x) {
+            return ((int) x) & 0xff;
+        }
+
+        int compareWith(byte[] right) {
+            for (int i = 0; i < wordLength && i < right.length; i++) {
+                int byte1 = toUInt8(wordBuffer[i]);
+                int byte2 = toUInt8(right[i]);
+                if (byte1 < byte2) {
+                    return -1;
+                } else if (byte1 > byte2) {
+                    return 1;
+                }
+            }
+            if (wordLength < right.length) {
+                return -1;
+            } else if (wordLength > right.length) {
+                return 1;
+            } else {
+                return 0;
+            }
+        }
+
+        boolean startsWith(byte[] right) {
+            if (right.length > wordLength) {
+                return false;
+            }
+            for (int i = 0; i < right.length; i++) {
+                int byte1 = toUInt8(wordBuffer[i]);
+                int byte2 = toUInt8(right[i]);
+                if (byte1 != byte2) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        String getWord() {
+            if (wordLength == 0) {
+                return "";
+            }
+            try {
+                return new String(wordBuffer, 0, wordLength, codec);
+            } catch (UnsupportedEncodingException ignored) {
+                return "";
+            }
+        }
+    }
 }

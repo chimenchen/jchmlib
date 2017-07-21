@@ -71,4 +71,27 @@ public class BitReader {
         return 0;
     }
 
+    /**
+     * Parse a kind of integer of variant length.
+     * The integer is encoded using the scale and root method.
+     * http://www.nongnu.org/chmspec/latest/Internal.html#FIftiMain_scale_root
+     */
+    public long getSrInt(byte s, byte r) {
+        if (s != 2) {
+            return ~(long) 0;
+        }
+
+        int count = 0;
+        while (readBits(1) == 1) {
+            count++;
+        }
+
+        int n_bits = r + ((count > 0) ? count - 1 : 0);
+        long ret = readBits(n_bits);
+        if (count > 0) {
+            ret |= (long) 1 << n_bits;
+        }
+        return ret;
+    }
+
 }

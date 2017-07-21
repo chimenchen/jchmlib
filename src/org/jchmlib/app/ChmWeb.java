@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.jchmlib.ChmEnumerator;
 import org.jchmlib.ChmFile;
+import org.jchmlib.ChmIndexSearcher;
 import org.jchmlib.ChmSearchEnumerator;
 import org.jchmlib.ChmTopicsTree;
 import org.jchmlib.ChmUnitInfo;
@@ -61,7 +62,7 @@ public class ChmWeb extends Thread {
         }
 
         System.out.println("Server started. Now open your browser " +
-                "and type\n\t http://localhost:" + listen_socket.getLocalPort());
+                "and type\n\t http://localhost:" + listen_socket.getLocalPort() + "/@index.html");
 
         //Start running Server thread
         start();
@@ -395,10 +396,16 @@ class ClientHandler extends Thread {
         deliverSearchForm(query);
 
         try {
-            HashMap<String, String> results = chmFile.indexSearch(
-                    query, true, false);
+            ChmIndexSearcher searcher = chmFile.getIndexSearcher();
+            searcher.search(query, false, false);
+            HashMap<String, String> results = searcher.getResults();
+
             if (results == null) {
-                response.sendString("<p>No match found for " + query + ".</p>");
+                if (searcher.notSearchable) {
+                    response.sendString("<p>This CHM file doesn't support full-text search.</p>");
+                } else {
+                    response.sendString("<p>No match found for " + query + ".</p>");
+                }
             } else {
                 for (Map.Entry<String, String> entry : results.entrySet()) {
                     String url = entry.getKey();
@@ -585,6 +592,9 @@ class ClientHandler extends Thread {
             }
             response.sendLine("</div>");
         } else { // leaf node
+            if (tree.path.length() == 0 && title.equalsIgnoreCase("untitled")) {
+                return;
+            }
             response.sendLine("<img src=\"@ftv2doc.png\" "
                     + "   title=\"" + title + "\" "
                     + "   width=24 height=22 />"

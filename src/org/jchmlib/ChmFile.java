@@ -77,7 +77,7 @@ public class ChmFile {
 
     public final static int CHM_LZXC_RESETTABLE_V1_LEN = 0x28;
 
-    public final static int FTS_HEADER_LEN = 0x32;
+    public final static int FTS_HEADER_LEN = 0x82;  // was 0x32;
 
     // names of sections essential to decompression
     public static final String CHMU_RESET_TABLE =
@@ -141,6 +141,8 @@ public class ChmFile {
      * A {@link ChmTopicsTree} object containing topics in the Chm file.
      */
     private ChmTopicsTree tree;
+
+    private ChmIndexSearcher indexSearcher = null;
 
     /**
      * Creates a new ChmFile.
@@ -696,10 +698,20 @@ public class ChmFile {
     public HashMap<String, String> indexSearch(
             String text, boolean wholeWords,
             boolean titlesOnly) throws IOException {
-        ChmIndexSearcher searcher = new ChmIndexSearcher(this);
+        ChmIndexSearcher searcher = getIndexSearcher();
         searcher.search(text, wholeWords, titlesOnly);
-
         return searcher.getResults();
+    }
+
+    public ChmIndexSearcher getIndexSearcher() {
+        if (indexSearcher == null) {
+            indexSearcher = new ChmIndexSearcher(this);
+            try {
+                indexSearcher.search("jchmlib", true, true);
+            } catch (IOException ignored) {
+            }
+        }
+        return indexSearcher;
     }
 
     private ByteBuffer fetchBytesWithoutCatch(long offset, long len)

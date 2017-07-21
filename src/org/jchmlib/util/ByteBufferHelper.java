@@ -16,6 +16,10 @@ import java.nio.ByteOrder;
  */
 public class ByteBufferHelper {
 
+    public static void skip(ByteBuffer bb, int count) {
+        bb.position(bb.position() + count);
+    }
+
     /**
      * get a big-endian int from a little-endian ByteBuffer
      */
@@ -51,6 +55,11 @@ public class ByteBufferHelper {
         return (accum << 7) + temp;
     }
 
+    public static String parseString(ByteBuffer bb, String codec) {
+        int len = bb.remaining();
+        return parseString(bb, len, codec);
+    }
+
     /**
      * Parses a utf-8 string.
      */
@@ -61,12 +70,15 @@ public class ByteBufferHelper {
     /**
      * Parses a String using the named Charset Encoding.
      */
-    public static String parseString(ByteBuffer bb, int strLen,
-            String codec) throws IOException {
-        byte[] buf = new byte[strLen];
+    public static String parseString(ByteBuffer bb, int strLen, String codec) {
+        int length = Math.min(bb.remaining(), strLen);
+        if (length <= 0) {
+            return null;
+        }
+
+        byte[] buf = new byte[length];
         bb.get(buf);
 
-        int length = buf.length;
         for (int j = 0; j < buf.length; j++) {
             if (buf[j] == 0) {
                 length = j;
@@ -75,37 +87,6 @@ public class ByteBufferHelper {
         }
 
         return bytesToString(buf, 0, length, codec);
-    }
-
-    /**
-     * Parse a kind of integer of variant length.
-     */
-    public static long sr_int(BitReader bitReader, int bit,
-            byte s, byte r) {
-        if (bit > 7 || s != 2) {
-            return ~(long) 0;
-        }
-
-        int count = 0;
-        while (bitReader.readBits(1) == 1) {
-            count++;
-        }
-
-        int n_bits = r + ((count > 0) ? count - 1 : 0);
-        long ret = bitReader.readBits(n_bits);
-        if (count > 0) {
-            ret |= (long) 1 << n_bits;
-        }
-        return ret;
-    }
-
-    /**
-     * Skip a compressed dword.
-     */
-    private static void skipCWord(ByteBuffer bb) {
-        //noinspection StatementWithEmptyBody
-        while (bb.get() < 0) {
-        }
     }
 
     /**
@@ -135,8 +116,7 @@ public class ByteBufferHelper {
         }
     }
 
-    private static String bytesToString(byte[] bytes,
-            String encoding) {
+    private static String bytesToString(byte[] bytes, String encoding) {
         return bytesToString(bytes, 0, bytes.length, encoding);
     }
 
@@ -145,9 +125,7 @@ public class ByteBufferHelper {
         String result;
         try {
             result = new String(bytes, offset, length, encoding);
-        } catch (UnsupportedEncodingException uee) {
-            // System.err.println("Fatal error: " + encoding +
-            //         " is not supported on this platform!");
+        } catch (UnsupportedEncodingException ignored) {
             result = new String(bytes, offset, length);
         }
         return result;
