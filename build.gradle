@@ -1,3 +1,8 @@
+// create DMG using:
+// $(/usr/libexec/java_home)/bin/javapackager -deploy -native dmg -srcfiles build/libs/jchmlib-0.2.jar -appclass org.jchmlib.app.ChmWebApp -name ChmWeb -outdir build/deploy -outfile ChmWeb -v
+// need to replace Info.plist in ChmWeb.app
+// FIXME: find/write tools for creating DMG
+
 apply plugin: "java"
 archivesBaseName = "jchmlib"
 version = "0.2"
@@ -13,11 +18,18 @@ sourceSets {
     }
 }
 
+compileJava {
+    options.compilerArgs << "-XDignore.symbol.file=true" << "-Xlint:unchecked"
+    options.fork = true
+    options.forkOptions.executable = 'javac'
+}
+
 jar {
     manifest {
         attributes(
                 "Implementation-Title": "jchmlib",
                 "Implementation-Version": version,
-                "Main-Class": "org.jchmlib.app.ChmWeb")
+                "Main-Class": "org.jchmlib.app.ChmWebApp")
     }
 }
+

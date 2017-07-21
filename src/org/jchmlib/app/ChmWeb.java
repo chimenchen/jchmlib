@@ -36,29 +36,37 @@ public class ChmWeb extends Thread {
 
     private ServerSocket listen_socket;
     private ChmFile chmFile;
+    private String chmFilePath = null;
     private boolean isRunningFromJar;
     private String resourcesPath;
 
-    public ChmWeb(int port, String chmFileName) {
+    public ChmWeb() {
         isRunningFromJar = checkRunningFromJar();
 
         resourcesPath = System.getProperty("org.util.jchmlib.app.ChmWeb.resources");
         if (resourcesPath == null && !isRunningFromJar) {
             resourcesPath = "resources";
         }
+    }
+
+    public boolean serveChmFile(int port, String chmFileName) {
+        if (getState() == State.RUNNABLE) {  // already started
+            return false;
+        }
 
         listen_socket = tryCreateSocket(port);
         if (listen_socket == null) {
             System.err.println("Failed to find a free port.");
-            return;
+            return false;
         }
 
         try {
+            chmFilePath = chmFileName;
             chmFile = new ChmFile(chmFileName);
         } catch (IOException e) {
             System.err.println("Failed to open this CHM file.");
             e.printStackTrace();
-            return;
+            return false;
         }
 
         System.out.println("Server started. Now open your browser " +
@@ -66,56 +74,11 @@ public class ChmWeb extends Thread {
 
         //Start running Server thread
         start();
+
+        return true;
     }
 
-    private static void PrintUsage() {
-        StackTraceElement[] stack = Thread.currentThread().getStackTrace();
-        StackTraceElement main = stack[stack.length - 1];
-        String mainClass = main.getClassName();
-
-        System.out.println("Usage: " + mainClass + " [-p port] chm-filename");
-    }
-
-    public static void main(String[] argv) {
-        int port = 0;
-        String chmFileName = null;
-
-        int i = 0;
-        while (i < argv.length) {
-            String arg = argv[i];
-            if (arg.equalsIgnoreCase("--port") ||
-                    arg.equalsIgnoreCase("-p")) {
-                if (i + 1 >= argv.length) {
-                    PrintUsage();
-                    return;
-                }
-
-                i++;
-                try {
-                    port = Integer.parseInt(argv[i]);
-                } catch (NumberFormatException ignored) {
-                }
-
-                if (port < 0) {
-                    port = 0;
-                }
-
-            } else {
-                chmFileName = arg;
-                break;
-            }
-
-            i++;
-        }
-
-        if (chmFileName == null) {
-            PrintUsage();
-            return;
-        }
-        new ChmWeb(port, chmFileName);
-    }
-
-    public ServerSocket tryCreateSocket(int defaultPort) {
+    ServerSocket tryCreateSocket(int defaultPort) {
         if (defaultPort > 0) {
             try {
                 return new ServerSocket(defaultPort);
@@ -135,13 +98,29 @@ public class ChmWeb extends Thread {
         return null;
     }
 
+    public int getServerPort() {
+        if (listen_socket == null) {
+            return 0;
+        } else {
+            return listen_socket.getLocalPort();
+        }
+    }
+
+    public String getChmTitle() {
+        if (chmFile == null) {
+            return "";
+        } else {
+            return chmFile.title;
+        }
+    }
+
+    public String getChmFilePath() {
+        return chmFilePath == null ? "" : chmFilePath;
+    }
+
     public void run() {
         try {
             while (true) {
-                //listen for a request. When a request comes in,
-                //accept it, then create a Connection object to
-                //service the request and go back to listening on
-                //the port.
                 Socket client_socket = listen_socket.accept();
                 new ClientHandler(client_socket, chmFile,
                         isRunningFromJar, resourcesPath);
@@ -154,8 +133,7 @@ public class ChmWeb extends Thread {
 
     public boolean checkRunningFromJar() {
         String className = this.getClass().getName().replace('.', '/');
-        String classJar =
-                this.getClass().getResource("/" + className + ".class").toString();
+        String classJar = this.getClass().getResource("/" + className + ".class").toString();
         return classJar.startsWith("jar:");
     }
 }
@@ -210,7 +188,6 @@ class ClientHandler extends Thread {
     }
 
     public void run() {
-
         try {
             if (requestedFile.equalsIgnoreCase("/favicon.ico")) {
                 deliverSpecial();
@@ -367,7 +344,7 @@ class ClientHandler extends Thread {
     }
 
     private void deliverTree() {
-        int expandLevel = 2;
+        int expandLevel = 4;
         String query = request.getParameter("expand");
         if (query != null) {
             expandLevel = Integer.parseInt(query);

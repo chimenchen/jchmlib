@@ -532,8 +532,7 @@ public class ChmFile {
                     return null;
                 }
                 // this is necessary!
-                lzxInflator.decompress(buf0,
-                        block_len);
+                lzxInflator.decompress(buf0, block_len);
             }
         } else {
             if ((block % reset_blkcount) == 0) {
@@ -547,8 +546,14 @@ public class ChmFile {
             return null;
         }
 
-        return lzxInflator.decompress(buf0,
-                block_len);
+        return lzxInflator.decompress(buf0, block_len);
+    }
+
+    private boolean unitTypeMatched(ChmUnitInfo ui, int typeBits, int filterBits) {
+        if ((typeBits & ui.flags) == 0) {
+            return false;
+        }
+        return !(filterBits != 0 && (filterBits & ui.flags) == 0);
     }
 
     /**
@@ -600,16 +605,10 @@ public class ChmFile {
             }
             lastPath = ui.path;
 
-            if ((type_bits & ui.flags) == 0) {
-                continue;
+            if (unitTypeMatched(ui, type_bits, filter_bits)) {
+                // call the enumerator
+                e.enumerate(ui);
             }
-
-            if (filter_bits != 0 && (filter_bits & ui.flags) == 0) {
-                continue;
-            }
-
-            // call the enumerator
-            e.enumerate(ui);
         }
     }
 
@@ -629,16 +628,10 @@ public class ChmFile {
         int filter_bits = (what & 0xF8);
 
         for (ChmUnitInfo ui : dirMap.values()) {
-            if ((type_bits & ui.flags) == 0) {
-                continue;
+            if (unitTypeMatched(ui, type_bits, filter_bits)) {
+                // call the enumerator
+                e.enumerate(ui);
             }
-
-            if (filter_bits != 0 && (filter_bits & ui.flags) == 0) {
-                continue;
-            }
-
-            // call the enumerator
-            e.enumerate(ui);
         }
     }
 

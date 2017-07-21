@@ -122,9 +122,7 @@ public class ChmIndexSearcher {
             initWordBuilder();
             while (bufLeafNode.hasRemaining()) {
                 // get a word
-                int wordLen = bufLeafNode.get();
-                int pos = bufLeafNode.get();
-                wordBuilder.readWord(bufLeafNode, pos, wordLen);
+                wordBuilder.readWord(bufLeafNode);
                 LOGGER.log(Level.FINE, " <=> word " + wordBuilder.getWord());
 
                 // Context (0 for body tag, 1 for title tag)
@@ -190,9 +188,7 @@ public class ChmIndexSearcher {
 
             initWordBuilder();
             while (bufIndexNode.hasRemaining()) {
-                int wordLen = bufIndexNode.get();
-                int pos = bufIndexNode.get();
-                wordBuilder.readWord(bufIndexNode, pos, wordLen);
+                wordBuilder.readWord(bufIndexNode);
                 LOGGER.log(Level.FINE, " <=> word " + wordBuilder.getWord());
 
                 int cmpResult = wordBuilder.compareWith(queryAsBytes);
@@ -319,6 +315,12 @@ public class ChmIndexSearcher {
             wordBuffer = new byte[maxWordLength];
             wordLength = 0;
             this.codec = codec;
+        }
+
+        void readWord(ByteBuffer bb) {
+            int wordLen = bb.get();
+            int pos = bb.get();
+            readWord(bb, pos, wordLen);
         }
 
         void readWord(ByteBuffer bb, int pos, int len) {
