@@ -311,6 +311,7 @@ public class LZXInflator {
      */
     public ByteBuffer decompress(ByteBuffer inBuf, int outLen) {
         ByteBuffer outBuf = ByteBuffer.allocate(outLen);
+        outBuf.order(ByteOrder.LITTLE_ENDIAN);
         BitReader bitReader = new BitReader(inBuf, true);
 
         // read header if necessary
@@ -586,7 +587,11 @@ public class LZXInflator {
             }
 
             int markedOutBufPos = outBuf.position();
-            long absoluteOffset = ByteBufferHelper.getUInt32(outBuf);
+
+            // get UInt32
+            int tmp = outBuf.getInt();
+            long absoluteOffset = tmp & 0x00000000ffffffffL;
+
             if ((absoluteOffset >= -curPos) && (absoluteOffset < fileSize)) {
                 long relativeOffset;
                 if (absoluteOffset >= 0) {

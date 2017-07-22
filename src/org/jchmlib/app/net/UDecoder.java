@@ -6,6 +6,7 @@
 
 package org.jchmlib.app.net;
 
+import java.util.logging.Logger;
 import org.jchmlib.util.ByteBufferHelper;
 
 /**
@@ -15,32 +16,10 @@ import org.jchmlib.util.ByteBufferHelper;
  */
 public class UDecoder {
 
-    //    // The platform default encoding
-    //    @SuppressWarnings("unchecked")
-    //    private static String dfltEncName = (String) AccessController
-    //            .doPrivileged(new GetPropertyAction("file.encoding"));
-    //
-    //    // public static String decode(String s) {
-    //        return decode(s, true);
-    //    }
-    //
-    //    public static String decode(String s, boolean query) {
-    //        String str = null;
-    //
-    //        try {
-    //            str = decode(s, dfltEncName, query);
-    //        } catch (IllegalArgumentException e) {
-    //            // The system should always have the platform default
-    //        }
-    //
-    //        return str;
-    //    }
-
-    public static String decode(String s, String enc) {
-        return decode(s, enc, true);
-    }
+    private static final Logger LOG = Logger.getLogger(UDecoder.class.getName());
 
     public static String decode(String s, String enc, boolean query) {
+        LOG.info(String.format("URL decode (%s): %s", enc, s));
         if (s == null || enc == null || enc.length() == 0) {
             return null;
         }

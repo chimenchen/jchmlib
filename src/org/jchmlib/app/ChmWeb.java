@@ -19,6 +19,7 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Logger;
 import org.jchmlib.ChmEnumerator;
 import org.jchmlib.ChmFile;
 import org.jchmlib.ChmIndexSearcher;
@@ -34,6 +35,8 @@ import org.jchmlib.app.net.HttpResponse;
  * You can use it to view CHM files.
  */
 public class ChmWeb extends Thread {
+
+    private static final Logger LOG = Logger.getLogger(ChmWeb.class.getName());
 
     private ServerSocket listen_socket;
     private ChmFile chmFile;
@@ -229,11 +232,12 @@ class ClientHandler extends Thread {
     }
 
     private void deliverDir() {
+        String codec = chmFile.codec;
         response.sendHeader("text/html");
         response.sendString("<html>\n" +
                 "<head>\n" +
                 "<meta http-equiv=\"Content-Type\" content=\"text/html; " +
-                " charset=" + chmFile.codec + "\">\n" +
+                " charset=" + codec + "\">\n" +
                 "<title>" + chmFile.title + "</title>" +
                 "</head>" +
                 "<body>\n" +
@@ -276,7 +280,15 @@ class ClientHandler extends Thread {
         // check to see if file exists
         if (ui == null) {
             if (mimeType.equalsIgnoreCase("text/html")) {
-                response.sendString("404: not found: " + requestedFile);
+                response.sendString("<html>\n" +
+                        "<head>\n" +
+                        "<meta http-equiv=\"Content-Type\" content=\"text/html; " +
+                        " charset=" + chmFile.codec + "\">\n" +
+                        "<title>404</title>" +
+                        "</head>" +
+                        "<body>\n" +
+                        "404: not found: " + requestedFile +
+                        "</body>");
             }
             return;
         }
@@ -284,7 +296,7 @@ class ClientHandler extends Thread {
         /* pump the data out */
         ByteBuffer buffer = chmFile.retrieveObject(ui);
 
-        response.write(buffer, (int) ui.length);
+        response.write(buffer, (int) ui.getLength());
     }
 
     private void deliverSpecial() throws IOException {
@@ -391,28 +403,25 @@ class ClientHandler extends Thread {
 
         deliverSearchForm(query);
 
-        try {
-            ChmIndexSearcher searcher = chmFile.getIndexSearcher();
-            searcher.search(query, false, false);
-            HashMap<String, String> results = searcher.getResults();
+        ChmIndexSearcher searcher = chmFile.getIndexSearcher();
+        searcher.search(query, false, false);
+        HashMap<String, String> results = searcher.getResults();
 
-            if (results == null) {
-                if (searcher.notSearchable) {
-                    response.sendString("<p>This CHM file doesn't support full-text search.</p>");
-                } else {
-                    response.sendString("<p>No match found for " + query + ".</p>");
-                }
+        if (results == null) {
+            if (searcher.notSearchable) {
+                response.sendString("<p>This CHM file doesn't support full-text search.</p>");
             } else {
-                for (Map.Entry<String, String> entry : results.entrySet()) {
-                    String url = entry.getKey();
-                    String topic = entry.getValue();
-                    response.sendString("<p>"
-                            + "<a class=\"el\" href=\"" + url + "\""
-                            + "   target=\"basefrm\">" + topic
-                            + "</a>" + "</p>");
-                }
+                response.sendString("<p>No match found for " + query + ".</p>");
             }
-        } catch (IOException ignored) {
+        } else {
+            for (Map.Entry<String, String> entry : results.entrySet()) {
+                String url = entry.getKey();
+                String topic = entry.getValue();
+                response.sendString("<p>"
+                        + "<a class=\"el\" href=\"" + url + "\""
+                        + "   target=\"basefrm\">" + topic
+                        + "</a>" + "</p>");
+            }
         }
         response.sendString("</div></div></body></html>");
     }
@@ -457,11 +466,16 @@ class ClientHandler extends Thread {
     }
 
     private void deliverMenu(int selected) {
+        // FIXME: there are still problem with codec:
+        // for example, one file has lang ID 0x419, so codec is CP1252,
+        // but charset in html is windows-1251.
+        // it would cause problem in searching.
+        String codec = chmFile.codec;
         response.sendHeader("text/html");
         response.sendString("<html>\n"
                 + "<head>\n"
                 + "<meta http-equiv=\"Content-Type\" "
-                + " content=\"text/html; charset=" + chmFile.codec + "\">\n"
+                + " content=\"text/html; charset=" + codec + "\">\n"
                 + "<title>Search</title>\n"
                 + "<link rel=\"STYLESHEET\" type=\"text/css\" href=\"@tree.css\"/>\n"
                 + "<script type=\"text/javascript\" src=\"@search.js\"></script>\n"
@@ -614,9 +628,9 @@ class DirChmEnumerator implements ChmEnumerator {
 
     public void enumerate(ChmUnitInfo ui) {
         out.println("<tr>\n");
-        out.println("\t<td align=right>" + ui.length
+        out.println("\t<td align=right>" + ui.getLength()
                 + " &nbsp&nbsp</td>");
-        out.println("\t<td><a href=\"" + ui.path + "\">" + ui.path
+        out.println("\t<td><a href=\"" + ui.getPath() + "\">" + ui.getPath()
                 + "</a></td>\n");
         out.println("</tr>");
     }

@@ -1,38 +1,31 @@
 package org.jchmlib;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import org.jchmlib.util.ByteBufferHelper;
 
 /**
  * LZXC reset table.
  */
 class ChmLzxcResetTable {
 
-    public int version;
-    public int block_count;
-    public int unknown;
-    public int table_offset;
-    public long uncompressed_len;
-    public long compressed_len;
-    public long block_len;
+    final int blockCount;
+    final int tableOffset;
+    final long uncompressedLen;
+    final long compressedLen;
+    final long blockLen;
 
-    public ChmLzxcResetTable(ByteBuffer bb) {
-        version = bb.getInt();
-        block_count = bb.getInt();
-        unknown = bb.getInt();
-        table_offset = bb.getInt();
-        uncompressed_len = bb.getLong();
-        compressed_len = bb.getLong();
-        block_len = bb.getLong();
+    ChmLzxcResetTable(ByteBuffer bb) throws IOException {
+        try {
+            ByteBufferHelper.skip(bb, 4); // version = bb.getInt();
+            blockCount = bb.getInt();
+            ByteBufferHelper.skip(bb, 4); // unknown = bb.getInt();
+            tableOffset = bb.getInt();
+            uncompressedLen = bb.getLong();
+            compressedLen = bb.getLong();
+            blockLen = bb.getLong();
+        } catch (Exception e) {
+            throw new IOException("Failed to parse LZXC reset table");
+        }
     }
-
-    public String toString() {
-        return "ChmLzxcResetTable" +
-                "\n\tversion:           " + version +
-                "\n\tblock_count:       " + block_count +
-                "\n\ttable_offset:      " + table_offset +
-                "\n\tuncompressed_len:  " + uncompressed_len +
-                "\n\tcompressed_len:    " + compressed_len +
-                "\n\tblock_len:         " + block_len;
-    }
-
 }

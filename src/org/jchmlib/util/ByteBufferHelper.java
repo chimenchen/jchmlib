@@ -8,51 +8,42 @@ package org.jchmlib.util;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+import java.util.logging.Logger;
 
 /**
  * ByteBufferHelper provides some ByteBuffer-relating methods.
  */
 public class ByteBufferHelper {
 
-    public static void skip(ByteBuffer bb, int count) {
-        bb.position(bb.position() + count);
-    }
+    private static final Logger LOG = Logger.getLogger(ByteBufferHelper.class.getName());
 
-    /**
-     * get a big-endian int from a little-endian ByteBuffer
-     */
-    public static int parseBigEndianInt(ByteBuffer bb) {
-        ByteOrder origOrder = bb.order();
-        bb.order(ByteOrder.BIG_ENDIAN);
-        int result = bb.getInt();
-        bb.order(origOrder);
-        return result;
-    }
-
-    public static long getUInt32(ByteBuffer bb) {
-        ByteOrder origOrder = bb.order();
-        bb.order(ByteOrder.LITTLE_ENDIAN);
-        int tmp = bb.getInt();
-        long result = tmp & 0x00000000ffffffffL;
-        bb.order(origOrder);
-        return result;
-    }
-
-    /**
-     * parse a compressed dword (a variant length integer)
-     */
-    public static long parseCWord(ByteBuffer bb) {
-        long accum = 0;
-        byte temp = bb.get();
-        while (temp < 0) {  // if the most significant bit is 1
-            accum <<= 7;
-            accum += temp & 0x7f;
-            temp = bb.get();
+    public static void skip(ByteBuffer bb, int count) throws IOException {
+        try {
+            bb.position(bb.position() + count);
+        } catch (IllegalArgumentException e) {
+            throw new IOException(e);
         }
+    }
 
-        return (accum << 7) + temp;
+    /**
+     * parse a compressed DWORD (a variant length integer)
+     */
+    public static long parseCWord(ByteBuffer bb) throws IOException {
+        try {
+            long accumulator = 0;
+            byte temp = bb.get();
+            while (temp < 0) {  // if the most significant bit is 1
+                accumulator <<= 7;
+                accumulator += temp & 0x7f;
+                temp = bb.get();
+            }
+            return (accumulator << 7) + temp;
+
+        } catch (BufferUnderflowException e) {
+            throw new IOException(e);
+        }
     }
 
     public static String parseString(ByteBuffer bb, String codec) {
@@ -63,7 +54,7 @@ public class ByteBufferHelper {
     /**
      * Parses a utf-8 string.
      */
-    public static String parseUTF8(ByteBuffer bb, int strLen) throws IOException {
+    public static String parseUTF8(ByteBuffer bb, int strLen) {
         return parseString(bb, strLen, "UTF-8");
     }
 
@@ -73,7 +64,7 @@ public class ByteBufferHelper {
     public static String parseString(ByteBuffer bb, int strLen, String codec) {
         int length = Math.min(bb.remaining(), strLen);
         if (length <= 0) {
-            return null;
+            return "";
         }
 
         byte[] buf = new byte[length];
@@ -94,8 +85,11 @@ public class ByteBufferHelper {
      * (i.e. the bytes between its position and limit) as a String.
      * Leaves the position of the ByteBuffer unchanged.
      */
-    public static String dataToString(ByteBuffer buf, String encoding) {
-        // First check to see if the input buffer has a backing array; 
+    public static String peakAsString(ByteBuffer buf, String encoding) {
+        if (buf.remaining() == 0) {
+            return "";
+        }
+        // First check to see if the input buffer has a backing array;
         // if so, we can just use it, to save making a copy of the data
         byte[] bytes;
         if (buf.hasArray()) {
@@ -103,15 +97,12 @@ public class ByteBufferHelper {
             return bytesToString(bytes, buf.position(), buf.remaining(),
                     encoding);
         } else {
-            // FIXME: synchronization on method parameter
-            synchronized (buf) {
-                // Remember the original position of the buffer
-                int pos = buf.position();
-                bytes = new byte[buf.remaining()];
-                buf.get(bytes);
-                // Reset the original position of the buffer
-                buf.position(pos);
-            }
+            // Remember the original position of the buffer
+            int pos = buf.position();
+            bytes = new byte[buf.remaining()];
+            buf.get(bytes);
+            // Reset the original position of the buffer
+            buf.position(pos);
             return bytesToString(bytes, encoding);
         }
     }
@@ -127,9 +118,10 @@ public class ByteBufferHelper {
             result = new String(bytes, offset, length, encoding);
         } catch (UnsupportedEncodingException ignored) {
             result = new String(bytes, offset, length);
+            LOG.info("String not in encoding " + encoding + ": " + ignored);
+            LOG.info("String in default encoding:" + result);
         }
         return result;
     }
-
 }
 

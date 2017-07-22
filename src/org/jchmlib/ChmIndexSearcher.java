@@ -3,12 +3,10 @@ package org.jchmlib;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.jchmlib.util.BitReader;
 import org.jchmlib.util.ByteBufferHelper;
@@ -16,7 +14,7 @@ import org.jchmlib.util.ByteBufferHelper;
 
 public class ChmIndexSearcher {
 
-    private static final Logger LOGGER = Logger.getLogger(ChmIndexSearcher.class.getName());
+    private static final Logger LOG = Logger.getLogger(ChmIndexSearcher.class.getName());
 
     private final ChmFile chmFile;
     public boolean notSearchable = false;
@@ -48,27 +46,38 @@ public class ChmIndexSearcher {
 
         HashMap<String, String> finalResults = new LinkedHashMap<>();
         for (IndexSearchResult result : results) {
-            LOGGER.log(Level.FINE, "#" + result.count + " " + result.topic + " <=> " + result.url);
+            LOG.fine("#" + result.count + " " + result.topic + " <=> " + result.url);
             finalResults.put(result.url, result.topic);
         }
         return finalResults;
     }
 
+    public void search(String query, boolean wholeWords, boolean titlesOnly) {
+        try {
+            searchWithoutCatch(query, wholeWords, titlesOnly);
+        } catch (Exception e) {
+            LOG.info("Error in index search" + e);
+        }
+    }
+
     // FIXME: improve support for CJK.
     // there are words for CJK characters (each with only one CJK characters),
     // rather than for CJK words (each with multiple CJK characters).
-    public void search(String query, boolean wholeWords, boolean titlesOnly) throws IOException {
+    public void searchWithoutCatch(String query, boolean wholeWords, boolean titlesOnly)
+            throws IOException {
         results = null;
 
-        if (notSearchable) {
+        if (notSearchable || query == null || query.equals("")) {
             return;
         }
+        LOG.info(" <=> query " + query);
 
-        if (query == null || query.equals("")) {
+        try {
+            queryAsBytes = query.toLowerCase().getBytes(chmFile.codec);
+        } catch (UnsupportedEncodingException ignored) {
+            LOG.info("failed to decode query: " + query);
             return;
         }
-        LOGGER.log(Level.FINE, " <=> query " + query);
-        queryAsBytes = query.toLowerCase().getBytes(chmFile.codec);
 
         uiMain = chmFile.resolveObject("/$FIftiMain");
         uiTopics = chmFile.resolveObject("/#TOPICS");
@@ -78,7 +87,7 @@ public class ChmIndexSearcher {
 
         if (uiMain == null || uiTopics == null || uiUrlTbl == null
                 || uiStrings == null || uiUrlStr == null) {
-            LOGGER.log(Level.FINE, "This CHM file is unsearchable.");
+            LOG.info("This CHM file is unsearchable.");
             notSearchable = true;
             return;
         }
@@ -86,21 +95,26 @@ public class ChmIndexSearcher {
         if (ftsHeader == null) {
             ByteBuffer bufFtsHeader = chmFile.retrieveObject(uiMain, 0, ChmFile.FTS_HEADER_LEN);
             if (bufFtsHeader == null) {
+                LOG.info("Failed to get FTS header");
                 notSearchable = true;
                 return;
             }
-            bufFtsHeader.order(ByteOrder.LITTLE_ENDIAN);
 
-            ftsHeader = new ChmFtsHeader(bufFtsHeader);
-            if (ftsHeader.docIndexS != 2 || ftsHeader.codeCountS != 2
-                    || ftsHeader.locCodesS != 2) {
+            try {
+                ftsHeader = new ChmFtsHeader(bufFtsHeader);
+            } catch (IOException e) {
+                LOG.info("Failed to parse FTS header." + e);
+                return;
+            }
+            if (ftsHeader.docIndexS != 2 || ftsHeader.codeCountS != 2 || ftsHeader.locCodesS != 2) {
+                LOG.info("Invalid s values in FTS header");
                 notSearchable = true;
                 return;
             }
         }
 
         int nodeOffset = getLeafNodeOffset();
-        if (nodeOffset == 0) {
+        if (nodeOffset <= 0) {
             return;
         }
 
@@ -110,7 +124,6 @@ public class ChmIndexSearcher {
             if (bufLeafNode == null) {
                 return;
             }
-            bufLeafNode.order(ByteOrder.LITTLE_ENDIAN);
 
             // Leaf node header
             nodeOffset = bufLeafNode.getInt();  // offset to the next leaf node
@@ -123,7 +136,7 @@ public class ChmIndexSearcher {
             while (bufLeafNode.hasRemaining()) {
                 // get a word
                 wordBuilder.readWord(bufLeafNode);
-                LOGGER.log(Level.FINE, " <=> word " + wordBuilder.getWord());
+                LOG.fine(" <=> word " + wordBuilder.getWord());
 
                 // Context (0 for body tag, 1 for title tag)
                 byte context = bufLeafNode.get();
@@ -138,7 +151,7 @@ public class ChmIndexSearcher {
 
                 int cmpResult = wordBuilder.compareWith(queryAsBytes);
                 if (cmpResult == 0) {
-                    LOGGER.log(Level.FINE, "!found!");
+                    LOG.fine("!found!");
                     ProcessWlcBlock(wlcCount, wlcSize, wlcOffset);
                     return;
                 } else if (cmpResult > 0) {
@@ -163,7 +176,16 @@ public class ChmIndexSearcher {
         }
     }
 
-    private int getLeafNodeOffset() throws IOException {
+    private int getLeafNodeOffset() {
+        try {
+            return getLeafNodeOffsetWithoutCatch();
+        } catch (Exception e) {
+            LOG.info("Failed to get leaf node offset" + e);
+            return 0;
+        }
+    }
+
+    private int getLeafNodeOffsetWithoutCatch() throws IOException {
         int lastNodeOffset = 0;
         int nodeOffset = ftsHeader.nodeOffset;
         int buffSize = ftsHeader.nodeLen;
@@ -180,7 +202,6 @@ public class ChmIndexSearcher {
             if (bufIndexNode == null) {
                 return 0;
             }
-            bufIndexNode.order(ByteOrder.LITTLE_ENDIAN);
 
             // the length of free space at the end of the node.
             short freeSpace = bufIndexNode.getShort();
@@ -189,11 +210,11 @@ public class ChmIndexSearcher {
             initWordBuilder();
             while (bufIndexNode.hasRemaining()) {
                 wordBuilder.readWord(bufIndexNode);
-                LOGGER.log(Level.FINE, " <=> word " + wordBuilder.getWord());
+                LOG.fine(" <=> word " + wordBuilder.getWord());
 
                 int cmpResult = wordBuilder.compareWith(queryAsBytes);
                 if (cmpResult >= 0) {
-                    LOGGER.log(Level.FINE, "!found index node");
+                    LOG.fine("!found index node");
                     // Offset of the leaf node whose last entry is this word
                     nodeOffset = bufIndexNode.getInt();
                     break;
@@ -210,13 +231,22 @@ public class ChmIndexSearcher {
         return nodeOffset;
     }
 
-    private void ProcessWlcBlock(long wlcCount, long wlcSize, int wlcOffset) throws IOException {
+    private void ProcessWlcBlock(long wlcCount, long wlcSize, int wlcOffset) {
+        try {
+            ProcessWlcBlockWithoutCatch(wlcCount, wlcSize, wlcOffset);
+        } catch (Exception e) {
+            LOG.info("Error processing WLC block: " + e);
+        }
+    }
+
+    private void ProcessWlcBlockWithoutCatch(long wlcCount, long wlcSize, int wlcOffset)
+            throws IOException {
+
         ByteBuffer bufWlcBlock = chmFile.retrieveObject(uiMain, wlcOffset, wlcSize);
         if (bufWlcBlock == null) {
-            LOGGER.log(Level.FINE, "Can't retrieve object:" + uiMain.path);
+            LOG.fine("Can't retrieve object:" + uiMain.path);
             return;
         }
-        bufWlcBlock.order(ByteOrder.LITTLE_ENDIAN);
 
         long docIndex = 0;
         for (long i = 0; i < wlcCount; i++) {
@@ -233,10 +263,9 @@ public class ChmIndexSearcher {
 
             ByteBuffer entry = chmFile.retrieveObject(uiTopics, docIndex * 16, 16);
             if (entry == null) {
-                LOGGER.log(Level.FINE, "Can't retrieve object:" + uiTopics.path);
+                LOG.fine("Can't retrieve object:" + uiTopics.path);
                 return;
             }
-            entry.order(ByteOrder.LITTLE_ENDIAN);
             entry.getInt();
             int strOffset = entry.getInt();
             int urlOffset = entry.getInt();
@@ -253,7 +282,6 @@ public class ChmIndexSearcher {
             if (bufUrlTable == null) {
                 return;
             }
-            bufUrlTable.order(ByteOrder.LITTLE_ENDIAN);
             ByteBufferHelper.skip(bufUrlTable, 8); // bufUrlTable.getInt(); // bufUrlTable.getInt();
             int urlStrOffset = bufUrlTable.getInt();
 
@@ -293,7 +321,7 @@ public class ChmIndexSearcher {
             results.add(result);
             return true;
         } else {
-            LOGGER.log(Level.FINE, "Too many results.");
+            LOG.fine("Too many results.");
             return false;
         }
     }
@@ -317,15 +345,19 @@ public class ChmIndexSearcher {
             this.codec = codec;
         }
 
-        void readWord(ByteBuffer bb) {
+        void readWord(ByteBuffer bb) throws IOException {
             int wordLen = bb.get();
             int pos = bb.get();
             readWord(bb, pos, wordLen);
         }
 
-        void readWord(ByteBuffer bb, int pos, int len) {
+        void readWord(ByteBuffer bb, int pos, int len) throws IOException {
             len -= 1;
-            bb.get(wordBuffer, pos, len);
+            try {
+                bb.get(wordBuffer, pos, len);
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
             wordLength = pos + len;
         }
 

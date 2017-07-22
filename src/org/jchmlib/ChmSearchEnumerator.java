@@ -103,22 +103,18 @@ public class ChmSearchEnumerator implements ChmEnumerator {
         if (buf == null) {
             return;
         }
+        String data = ByteBufferHelper.peakAsString(buf, chmFile.codec);
+        if (data == null) {
+            return;
+        }
 
-        String data = ByteBufferHelper.dataToString(buf,
-                chmFile.codec);
-
-        boolean found = false;
         for (String keyword : keywords) {
             Pattern p = Pattern.compile(keyword);
             Matcher m = p.matcher(data);
             if (m.find()) {
-                found = true;
-                break;
+                addResult(ui);
+                return;
             }
-        }
-
-        if (found) {
-            addResult(ui);
         }
     }
 

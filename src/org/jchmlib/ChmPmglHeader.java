@@ -2,29 +2,25 @@ package org.jchmlib;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import org.jchmlib.util.ByteBufferHelper;
 
 class ChmPmglHeader {
 
-    public String signature;       //  0 (PMGL)
-    public int free_space;         //  4
-    public int unknown_0008;       //  8
-    public int block_prev;         //  c
-    public int block_next;         // 10
+    public int freeSpace;         //  4
+    public int blockNext;         // 10
 
     public ChmPmglHeader(ByteBuffer bb) throws IOException {
-        byte[] sbuf = new byte[4];
-        bb.get(sbuf);
-        signature = new String(sbuf);
-        free_space = bb.getInt();
-        bb.getInt();
-        block_prev = bb.getInt();
-        block_next = bb.getInt();
-    }
+        String signature = ByteBufferHelper.parseString(bb, 4, "ASCII");
+        if (!signature.equals("PMGL")) {
+            throw new IOException("Unexpected PMGL header signature.");
+        }
 
-    public String toString() {
-        return signature +
-                "\n\t free_space:     " + Integer.toHexString(free_space) +
-                "\n\t block_prev:     " + Integer.toHexString(block_prev) +
-                "\n\t block_next:     " + Integer.toHexString(block_next);
+        try {
+            freeSpace = bb.getInt();
+            ByteBufferHelper.skip(bb, 8);
+            blockNext = bb.getInt();
+        } catch (Exception e) {
+            throw new IOException("Failed to parse PMGL header", e);
+        }
     }
 }

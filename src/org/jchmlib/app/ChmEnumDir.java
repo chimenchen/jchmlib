@@ -46,24 +46,25 @@ class DirEnumerator implements ChmEnumerator {
     }
 
     public void enumerate(ChmUnitInfo ui) {
+        int flags = ui.getFlags();
         String szBuf;
-        if ((ui.flags & ChmFile.CHM_ENUMERATE_NORMAL) != 0) {
+        if ((flags & ChmFile.CHM_ENUMERATE_NORMAL) != 0) {
             szBuf = "normal ";
-        } else if ((ui.flags & ChmFile.CHM_ENUMERATE_SPECIAL) != 0) {
+        } else if ((flags & ChmFile.CHM_ENUMERATE_SPECIAL) != 0) {
             szBuf = "special ";
-        } else if ((ui.flags & ChmFile.CHM_ENUMERATE_META) != 0) {
+        } else if ((flags & ChmFile.CHM_ENUMERATE_META) != 0) {
             szBuf = "meta ";
         } else {
             return;
         }
 
-        if ((ui.flags & ChmFile.CHM_ENUMERATE_DIRS) != 0) {
+        if ((flags & ChmFile.CHM_ENUMERATE_DIRS) != 0) {
             szBuf += "dir";
-        } else if ((ui.flags & ChmFile.CHM_ENUMERATE_FILES) != 0) {
+        } else if ((flags & ChmFile.CHM_ENUMERATE_FILES) != 0) {
             szBuf += "file";
         }
 
-        out.println(" " + ui.space + "\t" + ui.start + "\t" +
-                ui.length + "\t" + szBuf + "\t" + ui.path);
+        out.printf(" \t%d\t%s\t%s%n",
+                ui.getLength(), szBuf, ui.getPath());
     }
 }

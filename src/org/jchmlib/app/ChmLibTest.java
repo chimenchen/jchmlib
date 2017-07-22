@@ -25,9 +25,9 @@ public class ChmLibTest {
         }
 
         System.out.println("Extracting to " + argv[2]);
-        ByteBuffer buffer = chmFile.retrieveObject(ui, 0, ui.length);
+        ByteBuffer buffer = chmFile.retrieveObject(ui, 0, ui.getLength());
         if (buffer == null) {
-            System.out.println("    extract failed on " + ui.path);
+            System.out.println("    extract failed on " + ui.getPath());
             return;
         }
 

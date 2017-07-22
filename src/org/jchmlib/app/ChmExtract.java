@@ -47,29 +47,31 @@ class Extractor implements ChmEnumerator {
     }
 
     public void enumerate(ChmUnitInfo ui) {
-        if (!ui.path.startsWith("/")) {
+        String path = ui.getPath();
+        long length = ui.getLength();
+        if (!path.startsWith("/")) {
             return;
         }
 
-        String fullPath = new File(basePath, ui.path).toString();
+        String fullPath = new File(basePath, path).toString();
 
-        if (ui.length != 0) {
+        if (length != 0) {
             PrintStream out = null;
             try {
                 out = new PrintStream(fullPath);
             } catch (IOException e) {
                 System.out.println("   fail while opening the newly created file "
-                        + ui.path);
+                        + path);
             }
             if (out == null) {
                 System.out.println("   fail to open the newly created file "
-                        + ui.path);
+                        + path);
                 return;
             }
 
-            ByteBuffer buffer = chmFile.retrieveObject(ui, 0, ui.length);
+            ByteBuffer buffer = chmFile.retrieveObject(ui, 0, length);
             if (buffer == null) {
-                System.out.println("    extract failed on " + ui.path);
+                System.out.println("    extract failed on " + path);
                 return;
             }
             int gotLen = buffer.limit() - buffer.position();

@@ -174,7 +174,8 @@ public class HttpRequest {
 
         String rawPath = uri.getRawPath();
         try {
-            return UDecoder.decode(rawPath, encoding, false);
+            // path of CHM object is encoded using UTF8.
+            return UDecoder.decode(rawPath, "UTF8", false);
         } catch (Exception e) {
             return null;
         }

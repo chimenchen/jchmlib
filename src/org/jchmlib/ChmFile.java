@@ -13,6 +13,7 @@ import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.logging.Logger;
 import org.jchmlib.util.ByteBufferHelper;
 import org.jchmlib.util.EncodingHelper;
 import org.jchmlib.util.LZXInflator;
@@ -32,39 +33,32 @@ public class ChmFile {
     public final static int CHM_UNCOMPRESSED = 0;
     public final static int CHM_PARAM_MAX_BLOCKS_CACHED = 0;
     public final static int CHM_MAX_BLOCKS_CACHED = 5;
-
     /**
      * Path starts with "/", but not "/#" and "/$".
      */
     public final static int CHM_ENUMERATE_NORMAL = 1;
-
     /**
      * Path does not start with "/".
      */
     public final static int CHM_ENUMERATE_META = 2;
-
     /**
      * Path starts with "/#" or "/$".
      */
     public final static int CHM_ENUMERATE_SPECIAL = 4;
-
     /**
      * Path does not end with "/".
      */
     public final static int CHM_ENUMERATE_FILES = 8;
-
     /**
      * Path ends with "/".
      */
     public final static int CHM_ENUMERATE_DIRS = 16;
-
     /**
      * CHM_ENUMERATE_NORMAL |
      * CHM_ENUMERATE_FILES |
      * CHM_ENUMERATE_DIRS
      */
     public final static int CHM_ENUMERATE_USER = 25;
-
     /**
      * CHM_ENUMERATE_NORMAL |
      * CHM_ENUMERATE_META |
@@ -73,12 +67,8 @@ public class ChmFile {
      * CHM_ENUMERATE_DIRS
      */
     public final static int CHM_ENUMERATE_ALL = 31;
-
-
     public final static int CHM_LZXC_RESETTABLE_V1_LEN = 0x28;
-
     public final static int FTS_HEADER_LEN = 0x82;  // was 0x32;
-
     // names of sections essential to decompression
     public static final String CHMU_RESET_TABLE =
             "::DataSpace/Storage/MSCompressed/Transform/" +
@@ -90,6 +80,7 @@ public class ChmFile {
             "::DataSpace/Storage/MSCompressed/Content";
     public static final String CHMU_SPANINFO =
             "::DataSpace/Storage/MSCompressed/SpanInfo";
+    private static final Logger LOG = Logger.getLogger(ChmFile.class.getName());
     /**
      * Path of the main file (default file to show on startup).
      */
@@ -111,6 +102,7 @@ public class ChmFile {
      * Normally, it would be HHA Version 4.74.8702.
      */
     public String generator;
+
     /**
      * The language codepage ID of this .chm archive
      */
@@ -119,24 +111,31 @@ public class ChmFile {
      * The character encoding of this .chm archive
      */
     public String codec = "UTF-8";
+
     private RandomAccessFile rf;
-    private long dir_offset;
-    private long dir_len;
-    private long data_offset;
-    private int index_head;
-    private int index_root;
-    private int dir_block_len;
-    private int block_len;
+
+    private int langIDInItsfHeader;
+    /**
+     * Offset within file of content section 0
+     */
+    private long dataOffset;
+    private int blockUncompressedLen;
+    /**
+     * absolute offsets of blocks (when compressed) in file.
+     */
     private long[] resetTable;
-    private int window_size;
-    private int reset_blkcount;
-    private boolean compression_disabled = false;
+    private int windowSize;
+    private int resetBlockCount;
+    private boolean compressionDisabled = false;
     // decompressor
     private LZXInflator lzxInflator;
     /**
      * Mapping from paths to {@link ChmUnitInfo} objects.
      */
-    private HashMap<String, ChmUnitInfo> dirMap;
+    // LinkedHashMap, since we want it to remember the order
+    // mappings are inserted.
+    private HashMap<String, ChmUnitInfo> dirMap = new LinkedHashMap<String, ChmUnitInfo>();
+
     /*
      * A {@link ChmTopicsTree} object containing topics in the Chm file.
      */
@@ -151,38 +150,21 @@ public class ChmFile {
      * @throws IOException if the file doesn't exist or the file is of the wrong format.
      */
     public ChmFile(String filename) throws IOException {
-        rf = new RandomAccessFile(filename, "r");
+        try {
+            rf = new RandomAccessFile(filename, "r");
+        } catch (Exception e) {
+            LOG.info("Error open CHM file: " + e);
+            throw new IOException(e);
+        }
 
-        readInitialHeader();
-        readDirectoryHeader();
-        readDirectoryTable();
+        readInitialHeaderAndDirectory();
+        // readDirectory();
+        // readDirectoryTable();
         readResetTable();
         readControlData();
         initInflator();
+        initMiscFiles(filename);
 
-        try {
-            initMiscFiles();
-        } catch (Exception ignored) {
-        }
-        if (topics_file == null) {
-            topics_file = "";
-        }
-        if (index_file == null) {
-            index_file = "";
-        }
-        if (home_file == null) {
-            home_file = "";
-        }
-        if (title == null || title.length() == 0) {
-            title = filename.replaceFirst("[.][^.]+$", "")
-                    .replaceAll(".*[\\\\/]|\\.[^.]*$‌​", "");
-        }
-        if (codec == null || codec.length() == 0) {
-            codec = "UTF-8";
-        }
-        if (generator == null) {
-            generator = "";
-        }
     }
 
     /**
@@ -220,71 +202,63 @@ public class ChmFile {
         }
     }
 
-    private void readInitialHeader() throws IOException {
-        ByteBuffer bb = fetchBytesWithoutCatch(0, CHM_ITSF_V3_LEN);
+    private void readInitialHeaderAndDirectory() throws IOException {
+        ByteBuffer bb = fetchBytesOrFail(0, CHM_ITSF_V3_LEN, "Failed to read ITSF header");
         ChmItsfHeader itsfHeader = new ChmItsfHeader(bb);
+        LOG.info(String.format("Language ID: %d, 0x%x", itsfHeader.langId, itsfHeader.langId));
 
-        // stash important values from header
-        dir_offset = itsfHeader.dir_offset;
-        dir_len = itsfHeader.dir_len;
-        data_offset = itsfHeader.data_offset;
-        bb.clear();
+        langIDInItsfHeader = itsfHeader.langId;
+        // dirOffset = itsfHeader.dirOffset;
+        dataOffset = itsfHeader.dataOffset;
+
+        readDirectory(itsfHeader.dirOffset);
     }
 
-    private void readDirectoryHeader() throws IOException {
-        ByteBuffer bb = fetchBytes(dir_offset, CHM_ITSP_V1_LEN);
-        if (bb == null) {
-            return;
-        }
+    private void readDirectory(long dirOffset) throws IOException {
+        ByteBuffer bb = fetchBytesOrFail(dirOffset, CHM_ITSP_V1_LEN, "Failed to read ITSP header");
         ChmItspHeader itspHeader = new ChmItspHeader(bb);
 
         // grab essential information from ITSP header
-        dir_offset += itspHeader.header_len;
-        dir_len -= itspHeader.header_len;
-        index_root = itspHeader.index_root;
-        index_head = itspHeader.index_head;
-        dir_block_len = itspHeader.block_len;
+        dirOffset += itspHeader.headerLen;
+        // int indexRoot = itspHeader.indexRoot;
+        int indexHead = itspHeader.indexHead;
+        // dirBlockLen = itspHeader.blockLen;
 
         // if the index root is -1, this means we don't have any PMGI blocks.
         // as a result, we must use the sole PMGL block as the index root
-        if (index_root <= -1) {
-            index_root = index_head;
-        }
+        // if (indexRoot <= -1) {
+        // indexRoot = indexHead;
+        // }
+
+        readDirectoryTable(indexHead, dirOffset, itspHeader.blockLen);
     }
 
-    private void readDirectoryTable() throws IOException {
-        // LinkedHashMap, since we want it to remember the order
-        // mappings are inserted.
-        dirMap = new LinkedHashMap<String, ChmUnitInfo>();
-
-        // starting page
-        int curPage = index_head;
-
+    private void readDirectoryTable(int indexHead, long dirOffset, int dirBlockLen)
+            throws IOException {
+        int curPage = indexHead;
         while (curPage != -1) {
-            ByteBuffer buf = fetchBytes(dir_offset + curPage * dir_block_len,
-                    dir_block_len);
-            if (buf == null) {
-                break;
-            }
+            ByteBuffer buf = fetchBytesOrFail(
+                    dirOffset + curPage * dirBlockLen, dirBlockLen,
+                    "Failed to read directory table");
             ChmPmglHeader header = new ChmPmglHeader(buf);
 
             // scan directory listing entries
-            while (buf.position() < dir_block_len - header.free_space) {
+            while (buf.position() < dirBlockLen - header.freeSpace) {
                 // parse a PMGL entry into a ChmUnitInfo object
                 ChmUnitInfo ui = new ChmUnitInfo(buf);
                 dirMap.put(ui.path.toLowerCase(), ui);
-                if (ui.path.endsWith(".hhc")) {
+                if (ui.path.toLowerCase().endsWith(".hhc")) {
                     dirMap.put("/@contents", ui);
                 }
             }
 
             // advance to next page
-            curPage = header.block_next;
+            curPage = header.blockNext;
         }
     }
 
     private void readResetTable() throws IOException {
-        compression_disabled = false;
+        compressionDisabled = false;
 
         ChmUnitInfo uiResetTable = resolveObject(CHMU_RESET_TABLE);
         ChmUnitInfo uiContent = resolveObject(CHMU_CONTENT);
@@ -292,104 +266,140 @@ public class ChmFile {
         if (uiResetTable == null || uiResetTable.space == CHM_COMPRESSED ||
                 uiContent == null || uiContent.space == CHM_COMPRESSED ||
                 uiLzxc == null || uiLzxc.space == CHM_COMPRESSED) {
-            compression_disabled = true;
-        }
-
-        if (compression_disabled) {
+            LOG.info("Compression is disabled.");
+            compressionDisabled = true;
             return;
         }
 
-        ByteBuffer buffer = retrieveObject(uiResetTable, 0, CHM_LZXC_RESETTABLE_V1_LEN);
-        if (buffer == null || buffer.remaining() != CHM_LZXC_RESETTABLE_V1_LEN) {
-            compression_disabled = true;
+        ByteBuffer buffer = retrieveObject(uiResetTable);
+        if (buffer == null || buffer.remaining() < CHM_LZXC_RESETTABLE_V1_LEN) {
+            LOG.info("Failed to retrieve reset table.");
+            compressionDisabled = true;
             return;
         }
 
-        ChmLzxcResetTable reset_table = new ChmLzxcResetTable(buffer);
-        block_len = (int) reset_table.block_len;
-        int block_count = reset_table.block_count;
+        ChmLzxcResetTable resetTableHeader = new ChmLzxcResetTable(buffer);
+        blockUncompressedLen = (int) resetTableHeader.blockLen;
+        int blockCount = resetTableHeader.blockCount;
 
-        int content_offset = (int) uiContent.start;
-
+        buffer.position(resetTableHeader.tableOffset);
         /* each entry in the reset table is 8-bytes long */
-        long bytes_to_read = block_count * 8;
-        if (bytes_to_read + CHM_LZXC_RESETTABLE_V1_LEN > uiResetTable.length) {
-            bytes_to_read = uiResetTable.length - CHM_LZXC_RESETTABLE_V1_LEN;
-            block_count = (int) bytes_to_read / 8;
+        if (buffer.remaining() < blockCount * 8) {
+            throw new IOException("Reset table is corrupted.");
         }
-        buffer = fetchBytesWithoutCatch(
-                data_offset + uiResetTable.start + reset_table.table_offset,
-                bytes_to_read);
 
-        resetTable = new long[block_count + 1];
-        for (int i = 0; i < block_count; i++) {
-            resetTable[i] = data_offset + content_offset + buffer.getLong();
+        int contentOffset = (int) uiContent.start;
+        resetTable = new long[blockCount + 1];
+        for (int i = 0; i < blockCount; i++) {
+            resetTable[i] = dataOffset + contentOffset + buffer.getLong();
         }
-        resetTable[reset_table.block_count] = data_offset + content_offset +
-                reset_table.compressed_len;
+        resetTable[resetTableHeader.blockCount] = dataOffset + contentOffset +
+                resetTableHeader.compressedLen;
     }
 
-    private void readControlData() {
+    private void readControlData() throws IOException {
         ChmUnitInfo uiLzxc = resolveObject(CHMU_LZXC_CONTROLDATA);
-        ByteBuffer buffer = retrieveObject(uiLzxc, 0, uiLzxc.length);
-        ChmLzxcControlData ctlData = new ChmLzxcControlData(buffer);
+        if (uiLzxc == null) {
+            LOG.info("No LZXC control data found.");
+            compressionDisabled = true;
+            return;
+        }
 
-        reset_blkcount = ctlData.resetInterval / (ctlData.windowSize / 2) *
+        ByteBuffer buffer = retrieveObject(uiLzxc, 0, uiLzxc.length);
+        if (buffer == null) {
+            LOG.info("Failed to retrieve LZXC control data");
+            compressionDisabled = true;
+            return;
+        }
+
+        ChmLzxcControlData ctlData = new ChmLzxcControlData(buffer);
+        resetBlockCount = ctlData.resetInterval / (ctlData.windowSize / 2) *
                 ctlData.windowsPerReset;
-        window_size = ctlData.windowSize;
+        windowSize = ctlData.windowSize;
     }
 
     private void initInflator() {
-        int lwindow_size = ffs(window_size) - 1;
+        int lwindow_size = ffs(windowSize) - 1;
         lzxInflator = new LZXInflator(lwindow_size);
     }
 
-    private void initMiscFiles() throws IOException {
-        int type, len;
-        String data;
+    private void initMiscFiles(String filename) {
+        try {
+            initMiscFilesWithoutCatch();
+        } catch (Exception ignored) {
+        }
+
+        if (topics_file == null) {
+            topics_file = "";
+        }
+        if (index_file == null) {
+            index_file = "";
+        }
+        if (home_file == null) {
+            home_file = "";
+        }
+        if (title == null || title.length() == 0) {
+            title = filename.replaceFirst("[.][^.]+$", "")
+                    .replaceAll(".*[\\\\/]|\\.[^.]*$‌​", "");
+        }
+        if (codec == null || codec.length() == 0) {
+            codec = EncodingHelper.findCodec(langIDInItsfHeader);
+        }
+        if (generator == null) {
+            generator = "";
+        }
+    }
+
+    private void initMiscFilesWithoutCatch() throws IOException {
+        // int type, len;
+        // String data;
 
         ChmUnitInfo system = resolveObject("/#SYSTEM");
+        if (system == null) {
+            LOG.info("The #SYSTEM object doesn't exist.");
+            return;
+        }
+
         ByteBuffer buf = retrieveObject(system);
         if (buf == null) {
-            return;  // FIXME: raise exception?
+            return;
         }
+
         buf.getInt();
         while (buf.hasRemaining()) {
-            type = buf.getShort();
-            len = buf.getShort();
+            int type = buf.getShort();
+            int len = buf.getShort();
             switch (type) {
                 case 0:
-                    data = parseString(buf, len);
-                    topics_file = "/" + data;
-                    // System.out.println("topics file: " + topics_file);
+                    topics_file = "/" + ByteBufferHelper.parseUTF8(buf, len);
+                    LOG.info("topics file: " + topics_file);
                     break;
                 case 1:
-                    data = parseString(buf, len);
-                    index_file = "/" + data;
-                    // System.out.println("index file: " + index_file);
+                    index_file = "/" + ByteBufferHelper.parseUTF8(buf, len);
+                    LOG.info("index file: " + index_file);
                     break;
                 case 2:
-                    data = parseString(buf, len);
-                    home_file = "/" + data;
-                    // System.out.println("home file: " + home_file);
+                    home_file = "/" + ByteBufferHelper.parseUTF8(buf, len);
+                    LOG.info("home file: " + home_file);
                     break;
                 case 3:
                     title = ByteBufferHelper.parseString(buf, len, codec);
-                    // System.out.println("title: " + title);
+                    LOG.info("title: " + title);
                     break;
                 case 4:
-                    detectedLCID = buf.getShort();
+                    detectedLCID = buf.getInt();
                     codec = EncodingHelper.findCodec(detectedLCID);
-                    // System.out.println("detectedLCID:" + Integer.toHexString(detectedLCID));
-                    // System.out.println("Encoding: " + codec);
-                    parseString(buf, len - 2);  // skip
+                    LOG.info("LCID: 0x" + Integer.toHexString(detectedLCID));
+                    LOG.info("Encoding: " + codec);
+                    ByteBufferHelper.skip(buf, len - 4);
                     break;
                 case 9:
-                    generator = parseString(buf, len);
-                    // System.out.println("Generator: " + generator);
+                    generator = ByteBufferHelper.parseUTF8(buf, len);
+                    LOG.info("Generator: " + generator);
                     break;
                 default:
-                    parseString(buf, len);  // skip
+                    // LOG.info(String.format("Unknown type: %d, len %d", type, len));
+                    ByteBufferHelper.skip(buf, len);
             }
         }
     }
@@ -401,11 +411,10 @@ public class ChmFile {
      * "/index.html" or "/files/", etc.
      */
     public ChmUnitInfo resolveObject(String objPath) {
-        ChmUnitInfo result = null;
-        if (dirMap != null && dirMap.containsKey(objPath.toLowerCase())) {
-            result = dirMap.get(objPath.toLowerCase());
+        if (dirMap != null && objPath != null && dirMap.containsKey(objPath.toLowerCase())) {
+            return dirMap.get(objPath.toLowerCase());
         }
-        return result;
+        return null;
     }
 
     /**
@@ -441,9 +450,9 @@ public class ChmFile {
         // if the file is uncompressed, it's simple
         if (ui.space == CHM_UNCOMPRESSED) {
             // read data
-            buf = fetchBytes(data_offset + ui.start + addr, len);
+            buf = fetchBytes(dataOffset + ui.start + addr, len);
         } else {
-            if (compression_disabled) {
+            if (compressionDisabled) {
                 return null;
             }
 
@@ -459,6 +468,7 @@ public class ChmFile {
                 byte[] bytes = new byte[swath];
                 if (buf == null) {
                     buf = ByteBuffer.allocate((int) len);
+                    buf.order(ByteOrder.LITTLE_ENDIAN);
                 }
                 while (buf0.hasRemaining()) {
                     buf0.get(bytes);
@@ -485,18 +495,18 @@ public class ChmFile {
      * @param start starting offset(relative to the start of a CHM file)
      * @param len length in bytes
      */
-    private ByteBuffer decompressRegion(long start, long len) {
+    private synchronized ByteBuffer decompressRegion(long start, long len) {
         if (len <= 0) {
             return null;
         }
 
         // figure out what we need to read
-        int nBlock = (int) (start / block_len);
-        int nOffset = (int) (start % block_len);
+        int nBlock = (int) (start / blockUncompressedLen);
+        int nOffset = (int) (start % blockUncompressedLen);
 
         int nLen = (int) len;
-        if (nLen > (block_len - nOffset)) {
-            nLen = block_len - nOffset;
+        if (nLen > (blockUncompressedLen - nOffset)) {
+            nLen = blockUncompressedLen - nOffset;
         }
 
         // decompress some data
@@ -506,6 +516,7 @@ public class ChmFile {
         }
         buf.position(nOffset);
         buf.limit(nOffset + nLen);
+        buf.order(ByteOrder.LITTLE_ENDIAN);
 
         return buf;
     }
@@ -514,7 +525,7 @@ public class ChmFile {
      * Decompress a block.
      */
     private synchronized ByteBuffer decompressBlock(int block) {
-        int blockAlign = block % reset_blkcount; // reset intvl. aln.
+        int blockAlign = block % resetBlockCount; // reset intvl. aln.
 
         // check if we need previous blocks
         if (blockAlign != 0) {
@@ -522,7 +533,7 @@ public class ChmFile {
             for (int i = blockAlign; i > 0; i--) {
                 int curBlockIdx = block - i;
 
-                if ((curBlockIdx % reset_blkcount) == 0) {
+                if ((curBlockIdx % resetBlockCount) == 0) {
                     lzxInflator.reset();
                 }
 
@@ -532,10 +543,10 @@ public class ChmFile {
                     return null;
                 }
                 // this is necessary!
-                lzxInflator.decompress(buf0, block_len);
+                lzxInflator.decompress(buf0, blockUncompressedLen);
             }
         } else {
-            if ((block % reset_blkcount) == 0) {
+            if ((block % resetBlockCount) == 0) {
                 lzxInflator.reset();
             }
         }
@@ -546,7 +557,7 @@ public class ChmFile {
             return null;
         }
 
-        return lzxInflator.decompress(buf0, block_len);
+        return lzxInflator.decompress(buf0, blockUncompressedLen);
     }
 
     private boolean unitTypeMatched(ChmUnitInfo ui, int typeBits, int filterBits) {
@@ -689,8 +700,7 @@ public class ChmFile {
      * @param titlesOnly if true, search titles only;
      */
     public HashMap<String, String> indexSearch(
-            String text, boolean wholeWords,
-            boolean titlesOnly) throws IOException {
+            String text, boolean wholeWords, boolean titlesOnly) {
         ChmIndexSearcher searcher = getIndexSearcher();
         searcher.search(text, wholeWords, titlesOnly);
         return searcher.getResults();
@@ -699,26 +709,38 @@ public class ChmFile {
     public ChmIndexSearcher getIndexSearcher() {
         if (indexSearcher == null) {
             indexSearcher = new ChmIndexSearcher(this);
-            try {
-                indexSearcher.search("jchmlib", true, true);
-            } catch (IOException ignored) {
-            }
+            indexSearcher.search("jchmlib", true, true);
         }
         return indexSearcher;
     }
 
     private ByteBuffer fetchBytesWithoutCatch(long offset, long len)
-            throws IOException {
-        ByteBuffer buf = rf.getChannel()
-                .map(FileChannel.MapMode.READ_ONLY, offset, len);
+            throws IllegalArgumentException, IOException {
+        ByteBuffer buf = rf.getChannel().map(
+                FileChannel.MapMode.READ_ONLY, offset, len);
         buf.order(ByteOrder.LITTLE_ENDIAN);
         return buf;
     }
 
-    private ByteBuffer fetchBytes(long offset, long len) {
+    private synchronized ByteBuffer fetchBytesOrFail(long offset, long len, String exceptionMessage)
+            throws IOException {
         try {
             return fetchBytesWithoutCatch(offset, len);
         } catch (Exception e) {
+            if (exceptionMessage == null || exceptionMessage.length() == 0) {
+                exceptionMessage = "Failed to fetch bytes";
+            }
+            LOG.info(exceptionMessage + ": " + e);
+            throw new IOException(exceptionMessage, e);
+        }
+
+    }
+
+    private synchronized ByteBuffer fetchBytes(long offset, long len) {
+        try {
+            return fetchBytesWithoutCatch(offset, len);
+        } catch (Exception e) {
+            LOG.info("Failed to fetch bytes: " + e);
             return null;
         }
     }

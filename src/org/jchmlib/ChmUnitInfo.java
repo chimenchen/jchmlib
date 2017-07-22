@@ -15,21 +15,33 @@ import org.jchmlib.util.ByteBufferHelper;
  */
 public class ChmUnitInfo {
 
-    public long start;
-    public long length;
-    public int space;
-    public int flags;
-    public String path;
+    /**
+     * The offset is from the beginning of the content section the file is in,
+     * after the section has been decompressed (if appropriate).
+     * it is relative to dataOffset (for uncompressed/decompressed object)
+     */
+    long start;
+    /**
+     * The length also refers to length of the file in the section after decompression.
+     **/
+    long length;
+    int space;
+    int flags;
+    String path;
 
     public ChmUnitInfo(ByteBuffer bb) throws IOException {
-        // parse str len
-        int strLen = (int) ByteBufferHelper.parseCWord(bb);
-        // parse path
-        path = ByteBufferHelper.parseUTF8(bb, strLen);
-        // parse info
-        space = (int) ByteBufferHelper.parseCWord(bb);
-        start = ByteBufferHelper.parseCWord(bb);
-        length = ByteBufferHelper.parseCWord(bb);
+        try {
+            // parse str len
+            int strLen = (int) ByteBufferHelper.parseCWord(bb);
+            // parse path
+            path = ByteBufferHelper.parseUTF8(bb, strLen);  // Nonnull
+            // parse info
+            space = (int) ByteBufferHelper.parseCWord(bb);
+            start = ByteBufferHelper.parseCWord(bb);
+            length = ByteBufferHelper.parseCWord(bb);
+        } catch (Exception e) {
+            throw new IOException("Failed to parse CHM unit info", e);
+        }
 
         flags = 0;
         // check for DIRS vs. FILES
@@ -55,8 +67,18 @@ public class ChmUnitInfo {
         if (path.endsWith(".hhc") || path.endsWith(".hhk")) {
             flags = ChmFile.CHM_ENUMERATE_META;
         }
+    }
 
+    public long getLength() {
+        return length;
+    }
 
+    public int getFlags() {
+        return flags;
+    }
+
+    public String getPath() {
+        return path;
     }
 
     public String toString() {
