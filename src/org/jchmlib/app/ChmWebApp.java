@@ -9,6 +9,7 @@ import java.awt.Dimension;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.dnd.DnDConstants;
 import java.awt.dnd.DropTarget;
+import java.awt.dnd.DropTargetDragEvent;
 import java.awt.dnd.DropTargetDropEvent;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
@@ -24,12 +25,16 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.JTable;
+import javax.swing.WindowConstants;
+import javax.swing.filechooser.FileFilter;
 import javax.swing.table.AbstractTableModel;
 
 public class ChmWebApp {
 
-    ArrayList<ChmWeb> servers = new ArrayList<>();
-    JFrame frame;
+    private final ArrayList<ChmWeb> servers = new ArrayList<>();
+
+    private JFrame frame;
+    private JFileChooser fileChooser = null;
 
     private static void PrintUsage() {
         StackTraceElement[] stack = Thread.currentThread().getStackTrace();
@@ -100,7 +105,7 @@ public class ChmWebApp {
         }
     }
 
-    void startGui() {
+    private void startGui() {
         JTable table = new JTable(new ChmWebTableModel(servers)) {
             //Implement table cell tool tips.
             public String getToolTipText(MouseEvent e) {
@@ -121,14 +126,14 @@ public class ChmWebApp {
         JMenuItem menuItemOpenInBrowser = new JMenuItem(new AbstractAction("Open in browser") {
             @Override
             public void actionPerformed(ActionEvent e) {
-                System.out.println("open in browser");
-                int row = table.getSelectedRow();
-                System.out.println("open in browser: row=" + row);
-                if (row < 0 || row >= servers.size()) {
-                    return;
+                int[] rows = table.getSelectedRows();
+                for (int row : rows) {
+                    if (row < 0 || row >= servers.size()) {
+                        continue;
+                    }
+                    ChmWeb server = servers.get(row);
+                    openInBrowser(server);
                 }
-                ChmWeb server = servers.get(row);
-                openInBrowser(server);
             }
         });
         popup.add(menuItemOpenInBrowser);
@@ -136,14 +141,20 @@ public class ChmWebApp {
         JMenuItem menuItemCloseServer = new JMenuItem(new AbstractAction("Close") {
             @Override
             public void actionPerformed(ActionEvent e) {
-                int row = table.getSelectedRow();
-                System.out.println("close: row=" + row);
-                if (row < 0 || row >= servers.size()) {
-                    return;
+                int[] rows = table.getSelectedRows();
+                ArrayList<ChmWeb> serversToClose = new ArrayList<>();
+                for (int row : rows) {
+                    if (row < 0 || row >= servers.size()) {
+                        continue;
+                    }
+                    ChmWeb server = servers.get(row);
+                    serversToClose.add(server);
                 }
-                ChmWeb server = servers.get(row);
-                server.stopServer();
-                servers.remove(server);
+                for (ChmWeb server : serversToClose) {
+                    server.stopServer();
+                    servers.remove(server);
+                }
+                table.updateUI();
             }
         });
         popup.add(menuItemCloseServer);
@@ -151,11 +162,32 @@ public class ChmWebApp {
         JMenuItem menuItemOpenFile = new JMenuItem(new AbstractAction("Open CHM file") {
             @Override
             public void actionPerformed(ActionEvent e) {
-                JFileChooser fileChooser = new JFileChooser();
-                int r = fileChooser.showDialog(table, "Open");
+                if (fileChooser == null) {
+                    fileChooser = new JFileChooser();
+                    fileChooser.setMultiSelectionEnabled(true);
+
+                    fileChooser.setFileFilter(new FileFilter() {
+                        public String getDescription() {
+                            return "HTML Help files (*.chm)";
+                        }
+
+                        public boolean accept(File f) {
+                            if (f.isDirectory()) {
+                                return true;
+                            } else {
+                                String filename = f.getName().toLowerCase();
+                                return filename.endsWith(".chm");
+                            }
+                        }
+                    });
+                }
+
+                int r = fileChooser.showDialog(frame, "Open");
                 if (r == JFileChooser.APPROVE_OPTION) {
-                    File file = fileChooser.getSelectedFile();
-                    openFile(file);
+                    File[] files = fileChooser.getSelectedFiles();
+                    for (File file : files) {
+                        openFile(file);
+                    }
                 }
             }
         });
@@ -208,21 +240,6 @@ public class ChmWebApp {
             }
         });
 
-        table.setDropTarget(new DropTarget() {
-            public synchronized void drop(DropTargetDropEvent evt) {
-                try {
-                    evt.acceptDrop(DnDConstants.ACTION_COPY);
-                    List<File> droppedFiles = (List<File>)
-                            evt.getTransferable().getTransferData(DataFlavor.javaFileListFlavor);
-                    for (File file : droppedFiles) {
-                        openFile(file);
-                    }
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
-            }
-        });
-
         table.setAutoResizeMode(JTable.AUTO_RESIZE_NEXT_COLUMN);
         table.getColumnModel().getColumn(0).setPreferredWidth(20);
         table.getColumnModel().getColumn(1).setPreferredWidth(100);
@@ -230,10 +247,38 @@ public class ChmWebApp {
         frame = new JFrame("ChmWeb");
         frame.add(table.getTableHeader(), BorderLayout.PAGE_START);
         frame.add(table);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         frame.setSize(600, 500);
         frame.setPreferredSize(new Dimension(600, 500));
         frame.pack();
+
+        frame.setDropTarget(new DropTarget() {
+            @Override
+            public synchronized void dragOver(DropTargetDragEvent evt) {
+                evt.acceptDrag(DnDConstants.ACTION_COPY_OR_MOVE);
+            }
+
+            public synchronized void drop(DropTargetDropEvent evt) {
+                try {
+                    if (!evt.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
+                        evt.rejectDrop();
+                        return;
+                    }
+
+                    evt.acceptDrop(DnDConstants.ACTION_COPY_OR_MOVE);
+                    @SuppressWarnings("unchecked")
+                    List<File> droppedFiles = (List<File>) evt.getTransferable()
+                            .getTransferData(DataFlavor.javaFileListFlavor);
+                    for (File file : droppedFiles) {
+                        openFile(file);
+                    }
+                    evt.dropComplete(true);
+                    table.updateUI();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
 
         for (ChmWeb server : servers) {
             openInBrowser(server);
@@ -244,7 +289,7 @@ public class ChmWebApp {
         handleMac();
     }
 
-    void openInBrowser(ChmWeb server) {
+    private void openInBrowser(ChmWeb server) {
         int port = server.getServerPort();
         String url = String.format("http://localhost:%d/@index.html", port);
         if (Desktop.isDesktopSupported()) {
@@ -263,11 +308,11 @@ public class ChmWebApp {
         }
     }
 
-    void addServer(ChmWeb server) {
+    private void addServer(ChmWeb server) {
         servers.add(server);
     }
 
-    void openFile(File file) {
+    private void openFile(File file) {
         ChmWeb server = new ChmWeb();
         if (server.serveChmFile(0, file.getAbsolutePath())) {
             addServer(server);
@@ -277,7 +322,7 @@ public class ChmWebApp {
         }
     }
 
-    void handleMac() {
+    private void handleMac() {
         //First, check for if we are on OS X so that it doesn't execute on
         //other platforms. Note that we are using contains() because it was
         //called Mac OS X before 10.8 and simply OS X afterwards
@@ -298,8 +343,8 @@ public class ChmWebApp {
 
 class ChmWebTableModel extends AbstractTableModel {
 
-    final String[] columnNames = {"Port", "Title", "File Path"};
-    final ArrayList<ChmWeb> servers;
+    private final String[] columnNames = {"Port", "Title", "File Path"};
+    private final ArrayList<ChmWeb> servers;
 
     ChmWebTableModel(ArrayList<ChmWeb> servers) {
         this.servers = servers;

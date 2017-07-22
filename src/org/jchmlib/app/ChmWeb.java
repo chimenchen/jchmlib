@@ -55,18 +55,18 @@ public class ChmWeb extends Thread {
             return false;
         }
 
-        listen_socket = tryCreateSocket(port);
-        if (listen_socket == null) {
-            System.err.println("Failed to find a free port.");
-            return false;
-        }
-
         try {
             chmFilePath = chmFileName;
             chmFile = new ChmFile(chmFileName);
         } catch (Exception e) {
             System.err.println("Failed to open this CHM file.");
             e.printStackTrace();
+            return false;
+        }
+
+        listen_socket = tryCreateSocket(port);
+        if (listen_socket == null) {
+            System.err.println("Failed to find a free port.");
             return false;
         }
 
