@@ -13,6 +13,7 @@ import java.io.PrintStream;
 import java.io.RandomAccessFile;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
@@ -63,7 +64,7 @@ public class ChmWeb extends Thread {
         try {
             chmFilePath = chmFileName;
             chmFile = new ChmFile(chmFileName);
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.err.println("Failed to open this CHM file.");
             e.printStackTrace();
             return false;
@@ -120,15 +121,33 @@ public class ChmWeb extends Thread {
 
     public void run() {
         try {
-            while (true) {
-                Socket client_socket = listen_socket.accept();
-                new ClientHandler(client_socket, chmFile,
-                        isRunningFromJar, resourcesPath);
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    Socket client_socket = listen_socket.accept();
+                    new ClientHandler(client_socket, chmFile,
+                            isRunningFromJar, resourcesPath);
+                } catch (SocketException ignored) {
+                    break;
+                }
             }
         } catch (IOException e) {
             // System.err.println(e);
             e.printStackTrace();
         }
+    }
+
+    public void stopServer() {
+        if (chmFile == null || listen_socket == null ||
+                Thread.currentThread().isInterrupted()) {
+            return;
+        }
+
+        try {
+            listen_socket.close();
+        } catch (IOException e) {
+        }
+
+        interrupt();
     }
 
     public boolean checkRunningFromJar() {

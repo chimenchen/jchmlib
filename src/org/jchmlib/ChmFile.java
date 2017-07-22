@@ -173,8 +173,9 @@ public class ChmFile {
         if (home_file == null) {
             home_file = "";
         }
-        if (title == null) {
-            title = "";
+        if (title == null || title.length() == 0) {
+            title = filename.replaceFirst("[.][^.]+$", "")
+                    .replaceAll(".*[\\\\/]|\\.[^.]*$‌​", "");
         }
         if (codec == null || codec.length() == 0) {
             codec = "UTF-8";
@@ -347,7 +348,6 @@ public class ChmFile {
         int type, len;
         String data;
 
-        title = "JChmLib";  // default title
         ChmUnitInfo system = resolveObject("/#SYSTEM");
         ByteBuffer buf = retrieveObject(system);
         if (buf == null) {
@@ -718,7 +718,7 @@ public class ChmFile {
     private ByteBuffer fetchBytes(long offset, long len) {
         try {
             return fetchBytesWithoutCatch(offset, len);
-        } catch (IOException e) {
+        } catch (Exception e) {
             return null;
         }
     }
