@@ -205,7 +205,7 @@ public class ChmFile {
     private void readInitialHeaderAndDirectory() throws IOException {
         ByteBuffer bb = fetchBytesOrFail(0, CHM_ITSF_V3_LEN, "Failed to read ITSF header");
         ChmItsfHeader itsfHeader = new ChmItsfHeader(bb);
-        LOG.info(String.format("Language ID: %d, 0x%x", itsfHeader.langId, itsfHeader.langId));
+        LOG.fine(String.format("Language ID: %d, 0x%x", itsfHeader.langId, itsfHeader.langId));
 
         langIDInItsfHeader = itsfHeader.langId;
         // dirOffset = itsfHeader.dirOffset;
@@ -266,14 +266,14 @@ public class ChmFile {
         if (uiResetTable == null || uiResetTable.space == CHM_COMPRESSED ||
                 uiContent == null || uiContent.space == CHM_COMPRESSED ||
                 uiLzxc == null || uiLzxc.space == CHM_COMPRESSED) {
-            LOG.info("Compression is disabled.");
+            LOG.fine("Compression is disabled.");
             compressionDisabled = true;
             return;
         }
 
         ByteBuffer buffer = retrieveObject(uiResetTable);
         if (buffer == null || buffer.remaining() < CHM_LZXC_RESETTABLE_V1_LEN) {
-            LOG.info("Failed to retrieve reset table.");
+            LOG.fine("Failed to retrieve reset table.");
             compressionDisabled = true;
             return;
         }
@@ -300,14 +300,14 @@ public class ChmFile {
     private void readControlData() throws IOException {
         ChmUnitInfo uiLzxc = resolveObject(CHMU_LZXC_CONTROLDATA);
         if (uiLzxc == null) {
-            LOG.info("No LZXC control data found.");
+            LOG.fine("No LZXC control data found.");
             compressionDisabled = true;
             return;
         }
 
         ByteBuffer buffer = retrieveObject(uiLzxc, 0, uiLzxc.length);
         if (buffer == null) {
-            LOG.info("Failed to retrieve LZXC control data");
+            LOG.fine("Failed to retrieve LZXC control data");
             compressionDisabled = true;
             return;
         }
@@ -356,7 +356,7 @@ public class ChmFile {
 
         ChmUnitInfo system = resolveObject("/#SYSTEM");
         if (system == null) {
-            LOG.info("The #SYSTEM object doesn't exist.");
+            LOG.fine("The #SYSTEM object doesn't exist.");
             return;
         }
 
@@ -372,33 +372,33 @@ public class ChmFile {
             switch (type) {
                 case 0:
                     topics_file = "/" + ByteBufferHelper.parseUTF8(buf, len);
-                    LOG.info("topics file: " + topics_file);
+                    LOG.fine("topics file: " + topics_file);
                     break;
                 case 1:
                     index_file = "/" + ByteBufferHelper.parseUTF8(buf, len);
-                    LOG.info("index file: " + index_file);
+                    LOG.fine("index file: " + index_file);
                     break;
                 case 2:
                     home_file = "/" + ByteBufferHelper.parseUTF8(buf, len);
-                    LOG.info("home file: " + home_file);
+                    LOG.fine("home file: " + home_file);
                     break;
                 case 3:
                     title = ByteBufferHelper.parseString(buf, len, codec);
-                    LOG.info("title: " + title);
+                    LOG.fine("title: " + title);
                     break;
                 case 4:
                     detectedLCID = buf.getInt();
                     codec = EncodingHelper.findCodec(detectedLCID);
-                    LOG.info("LCID: 0x" + Integer.toHexString(detectedLCID));
-                    LOG.info("Encoding: " + codec);
+                    LOG.fine("LCID: 0x" + Integer.toHexString(detectedLCID));
+                    LOG.fine("Encoding: " + codec);
                     ByteBufferHelper.skip(buf, len - 4);
                     break;
                 case 9:
                     generator = ByteBufferHelper.parseUTF8(buf, len);
-                    LOG.info("Generator: " + generator);
+                    LOG.fine("Generator: " + generator);
                     break;
                 default:
-                    // LOG.info(String.format("Unknown type: %d, len %d", type, len));
+                    // LOG.fine(String.format("Unknown type: %d, len %d", type, len));
                     ByteBufferHelper.skip(buf, len);
             }
         }
@@ -730,7 +730,7 @@ public class ChmFile {
             if (exceptionMessage == null || exceptionMessage.length() == 0) {
                 exceptionMessage = "Failed to fetch bytes";
             }
-            LOG.info(exceptionMessage + ": " + e);
+            LOG.fine(exceptionMessage + ": " + e);
             throw new IOException(exceptionMessage, e);
         }
 
@@ -740,7 +740,7 @@ public class ChmFile {
         try {
             return fetchBytesWithoutCatch(offset, len);
         } catch (Exception e) {
-            LOG.info("Failed to fetch bytes: " + e);
+            LOG.fine("Failed to fetch bytes: " + e);
             return null;
         }
     }

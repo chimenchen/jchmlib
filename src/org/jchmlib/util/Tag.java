@@ -8,5 +8,5 @@ public class Tag {
     // public String text;
     public int tagLevel;
     public int totalLevel;
-    public HashMap<String, String> elements = new HashMap<>();
+    public HashMap<String, String> elements = new HashMap<String, String>();
 }

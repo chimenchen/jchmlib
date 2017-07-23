@@ -44,7 +44,7 @@ public class ChmIndexSearcher {
             }
         });
 
-        HashMap<String, String> finalResults = new LinkedHashMap<>();
+        HashMap<String, String> finalResults = new LinkedHashMap<String, String>();
         for (IndexSearchResult result : results) {
             LOG.fine("#" + result.count + " " + result.topic + " <=> " + result.url);
             finalResults.put(result.url, result.topic);
@@ -310,7 +310,7 @@ public class ChmIndexSearcher {
     private boolean addResult(String url, String topic, int count) {
         if (results == null) {
             // results = new LinkedHashMap<>();
-            results = new ArrayList<>();
+            results = new ArrayList<IndexSearchResult>();
         }
         if (results.size() < 100) {
             // results.put(url, topic);

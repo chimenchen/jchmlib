@@ -1,8 +1,3 @@
-// create DMG using:
-// $(/usr/libexec/java_home)/bin/javapackager -deploy -native dmg -srcfiles build/libs/jchmlib-0.2.jar -appclass org.jchmlib.app.ChmWebApp -name ChmWeb -outdir build/deploy -outfile ChmWeb -v
-// need to replace Info.plist in ChmWeb.app
-// FIXME: find/write tools for creating DMG
-
 apply plugin: "java"
 version = "0.2"
 
@@ -21,6 +16,8 @@ compileJava {
     options.forkOptions.executable = 'javac'
 }
 
+def mainClass = "org.jchmlib.app.ChmWebApp"
+
 task appJar(type: Jar) {
     baseName = "ChmWeb"
 
@@ -28,7 +25,7 @@ task appJar(type: Jar) {
         attributes(
                 "Implementation-Title": "ChmWeb",
                 "Implementation-Version": version,
-                "Main-Class": "org.jchmlib.app.ChmWebApp")
+                "Main-Class": mainClass)
     }
 
     from(sourceSets.main.output)
@@ -60,6 +57,32 @@ jar {
 }
 
 jar.dependsOn libJar, appJar
+
+// $(/usr/libexec/java_home)/bin/javapackager -deploy -native dmg -srcfiles build/libs/ChmWeb-0.2.jar -appclass org.jchmlib.app.ChmWebApp -name ChmWeb -outdir build/deploy -outfile ChmWeb -v -BappVersion=0.2
+
+task dmg(dependsOn: appJar) {
+    def buildDir = "build"
+    def appName = "ChmWeb"
+    def jarFile = "${buildDir}/libs/ChmWeb-${version}.jar"
+
+    file("${buildDir}/deploy").mkdirs()
+
+    println System.getProperty("java.home")+"/../bin/javapackager"
+
+    doLast { exec {
+        executable System.getProperty("java.home")+"/../bin/javapackager"
+        args "-deploy",
+             "-title", appName,
+             "-name", appName,
+             "-appclass", mainClass,
+             "-native", "dmg",
+             "-outdir", "$buildDir/deploy",
+             "-outfile", appName,
+             "-srcfiles", jarFile,
+             "-BappVersion=$version",
+             "-verbose"
+    }}
+}
 
 repositories {
     maven { url 'http://maven.aliyun.com/nexus/content/groups/public/' }

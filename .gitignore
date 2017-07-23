@@ -28,4 +28,5 @@ out/
 build/
 .gradle/
 logging.properties
+chm/
 

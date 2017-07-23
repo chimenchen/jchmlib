@@ -19,7 +19,7 @@ public class UDecoder {
     private static final Logger LOG = Logger.getLogger(UDecoder.class.getName());
 
     public static String decode(String s, String enc, boolean query) {
-        LOG.info(String.format("URL decode (%s): %s", enc, s));
+        LOG.fine(String.format("URL decode (%s): %s", enc, s));
         if (s == null || enc == null || enc.length() == 0) {
             return null;
         }

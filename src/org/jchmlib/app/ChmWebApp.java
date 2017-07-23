@@ -23,6 +23,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.JTable;
+import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.table.AbstractTableModel;
@@ -31,7 +32,7 @@ public class ChmWebApp {
 
     private static final Logger LOG = Logger.getLogger(ChmWebApp.class.getName());
 
-    private final ArrayList<ChmWeb> servers = new ArrayList<>();
+    private final ArrayList<ChmWeb> servers = new ArrayList<ChmWeb>();
 
     private JFrame frame;
     private JFileChooser fileChooser = null;
@@ -142,7 +143,7 @@ public class ChmWebApp {
             @Override
             public void actionPerformed(ActionEvent e) {
                 int[] rows = table.getSelectedRows();
-                ArrayList<ChmWeb> serversToClose = new ArrayList<>();
+                ArrayList<ChmWeb> serversToClose = new ArrayList<ChmWeb>();
                 for (int row : rows) {
                     if (row < 0 || row >= servers.size()) {
                         continue;
@@ -150,11 +151,17 @@ public class ChmWebApp {
                     ChmWeb server = servers.get(row);
                     serversToClose.add(server);
                 }
-                for (ChmWeb server : serversToClose) {
-                    server.stopServer();
-                    servers.remove(server);
-                }
-                table.updateUI();
+
+                SwingUtilities.invokeLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        for (ChmWeb server : serversToClose) {
+                            server.stopServer();
+                            servers.remove(server);
+                        }
+                        table.updateUI();
+                    }
+                });
             }
         });
         popup.add(menuItemCloseServer);
@@ -188,6 +195,7 @@ public class ChmWebApp {
                     for (File file : files) {
                         openFile(file);
                     }
+                    table.updateUI();
                 }
             }
         });
@@ -242,7 +250,8 @@ public class ChmWebApp {
 
         table.setAutoResizeMode(JTable.AUTO_RESIZE_NEXT_COLUMN);
         table.getColumnModel().getColumn(0).setPreferredWidth(20);
-        table.getColumnModel().getColumn(1).setPreferredWidth(100);
+        table.getColumnModel().getColumn(1).setPreferredWidth(200);
+        table.getColumnModel().getColumn(2).setPreferredWidth(200);
 
         frame = new JFrame("ChmWeb");
         frame.add(table.getTableHeader(), BorderLayout.PAGE_START);
@@ -272,17 +281,13 @@ public class ChmWebApp {
                     for (File file : droppedFiles) {
                         openFile(file);
                     }
-                    evt.dropComplete(true);
                     table.updateUI();
+                    evt.dropComplete(true);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
         });
-
-        for (ChmWeb server : servers) {
-            openInBrowser(server);
-        }
 
         frame.setVisible(true);
 
@@ -309,14 +314,19 @@ public class ChmWebApp {
     }
 
     private void addServer(ChmWeb server) {
-        servers.add(server);
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                servers.add(server);
+                openInBrowser(server);
+            }
+        });
     }
 
-    void openFile(File file) {
+    synchronized void openFile(File file) {
         ChmWeb server = new ChmWeb();
         if (server.serveChmFile(0, file.getAbsolutePath())) {
             addServer(server);
-            openInBrowser(server);
         } else {
             JOptionPane.showMessageDialog(frame, "Failed to open " + file.getName());
         }

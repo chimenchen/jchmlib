@@ -5,24 +5,27 @@ import com.apple.eawt.Application;
 import com.apple.eawt.OpenFilesHandler;
 import java.io.File;
 
-class ChmWebAppMacSupport implements ChmWebAppSpecificPlatform {
+class ChmWebAppMacSupport implements ChmWebAppSpecificPlatform, OpenFilesHandler {
+
+    ChmWebApp app;
 
     public ChmWebAppMacSupport() {
     }
 
+    @Override
     public void initialize(ChmWebApp app) {
+        this.app = app;
         Application a = Application.getApplication();
-        a.setOpenFileHandler(new OpenFilesHandler() {
-            @Override
-            public void openFiles(OpenFilesEvent e) {
-                for (Object obj : e.getFiles()) {
-                    File file = (File) obj;
-                    if (file != null) {
-                        app.openFile(file);
-                    }
-                }
-            }
-        });
+        a.setOpenFileHandler(this);
     }
 
+    @Override
+    public void openFiles(OpenFilesEvent openFilesEvent) {
+        for (Object obj : openFilesEvent.getFiles()) {
+            File file = (File) obj;
+            if (file != null) {
+                this.app.openFile(file);
+            }
+        }
+    }
 }
