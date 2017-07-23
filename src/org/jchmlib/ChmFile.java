@@ -348,7 +348,7 @@ public class ChmFile {
         }
         if (title == null || title.length() == 0) {
             title = filename.replaceFirst("[.][^.]+$", "")
-                    .replaceAll(".*[\\\\/]|\\.[^.]*$‌​", "");
+                    .replaceAll(".*[\\\\/]|\\.[^.]*$", "");
         }
         if (codec == null || codec.length() == 0) {
             // FIXME: this langID may be wrong.

@@ -253,6 +253,7 @@ public class ChmWebApp {
         table.getColumnModel().getColumn(1).setPreferredWidth(200);
         table.getColumnModel().getColumn(2).setPreferredWidth(200);
 
+        // FIXME: layout problem, the table is not scrollable
         frame = new JFrame("ChmWeb");
         frame.add(table.getTableHeader(), BorderLayout.PAGE_START);
         frame.add(table);
