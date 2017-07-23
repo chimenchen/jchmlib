@@ -23,6 +23,6 @@ public interface ChmEnumerator {
     /**
      * Does something on the ChmUnitInfo.
      */
-    void enumerate(ChmUnitInfo ui);
+    void enumerate(ChmUnitInfo ui) throws ChmStopEnumeration;
 }
 

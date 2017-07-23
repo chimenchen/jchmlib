@@ -26,7 +26,6 @@ import org.jchmlib.ChmIndexSearcher;
 import org.jchmlib.ChmSearchEnumerator;
 import org.jchmlib.ChmTopicsTree;
 import org.jchmlib.ChmUnitInfo;
-import org.jchmlib.app.net.HTMLEncode;
 import org.jchmlib.app.net.HttpRequest;
 import org.jchmlib.app.net.HttpResponse;
 
@@ -148,6 +147,7 @@ public class ChmWeb extends Thread {
         try {
             listen_socket.close();
         } catch (IOException e) {
+            LOG.fine("Error closing listen socket: " + e);
         }
 
         interrupt();
@@ -169,6 +169,7 @@ class ClientHandler extends Thread {
     private final ChmFile chmFile;
     private final boolean isRunningFromJar;
 
+    private String codec;
     private HttpRequest request;
     private HttpResponse response;
     private String requestedFile;
@@ -184,11 +185,10 @@ class ClientHandler extends Thread {
         this.isRunningFromJar = isRunningFromJar;
         this.resourcesPath = resourcesPath;
 
+        codec = fixCodec(chmFile.codec);  // FIXME: can be done only once
         try {
-            request = new HttpRequest(client.getInputStream(),
-                    chmFile.codec);
-            response = new HttpResponse(client.getOutputStream(),
-                    chmFile.codec);
+            request = new HttpRequest(client.getInputStream(), codec);
+            response = new HttpResponse(client.getOutputStream(), codec);
         } catch (IOException e) {
             // System.err.println(e);
             e.printStackTrace();
@@ -207,6 +207,18 @@ class ClientHandler extends Thread {
         }
 
         start();
+    }
+
+    // reason: some CHM file may use the wrong codec.
+    private String fixCodec(String originCodec) {
+        // for CJK or the like, use the origin codec.
+        // see EncodingHelper for codec names.
+        if (!originCodec.equalsIgnoreCase("Latin1") &&
+                !originCodec.startsWith("CP")) {
+            return originCodec;
+        }
+
+        return "UTF8";
     }
 
     public void run() {
@@ -232,7 +244,6 @@ class ClientHandler extends Thread {
     }
 
     private void deliverDir() {
-        String codec = chmFile.codec;
         response.sendHeader("text/html");
         response.sendString("<html>\n" +
                 "<head>\n" +
@@ -283,20 +294,17 @@ class ClientHandler extends Thread {
                 response.sendString("<html>\n" +
                         "<head>\n" +
                         "<meta http-equiv=\"Content-Type\" content=\"text/html; " +
-                        " charset=" + chmFile.codec + "\">\n" +
+                        " charset=" + codec + "\">\n" +
                         "<title>404</title>" +
                         "</head>" +
                         "<body>\n" +
                         "404: not found: " + requestedFile +
                         "</body>");
             }
-            return;
+        } else {
+            ByteBuffer buffer = chmFile.retrieveObject(ui);
+            response.write(buffer, (int) ui.getLength());
         }
-
-        /* pump the data out */
-        ByteBuffer buffer = chmFile.retrieveObject(ui);
-
-        response.write(buffer, (int) ui.getLength());
     }
 
     private void deliverSpecial() throws IOException {
@@ -363,7 +371,7 @@ class ClientHandler extends Thread {
         response.sendLine("<html>\n"
                 + "<head>\n"
                 + "<meta http-equiv=\"Content-Type\" "
-                + " content=\"text/html; charset=" + chmFile.codec
+                + " content=\"text/html; charset=" + codec
                 + "\">\n"
                 + "<title>" + chmFile.title + "</title>\n"
                 + "</head>\n"
@@ -374,7 +382,7 @@ class ClientHandler extends Thread {
                 + "</html>");
     }
 
-    private void deliverTree() {
+    private void deliverTree() throws IOException {
         int expandLevel = 4;
         String query = request.getParameter("expand");
         if (query != null) {
@@ -390,7 +398,7 @@ class ClientHandler extends Thread {
         chmFile.releaseLargeTopicsTree();
     }
 
-    private void deliverSearch() {
+    private void deliverSearch() throws IOException {
         deliverMenu(2);
         response.sendString("<p>Type in the word(s) to search for:</p>\n");
 
@@ -426,7 +434,7 @@ class ClientHandler extends Thread {
         response.sendString("</div></div></body></html>");
     }
 
-    private void deliverSearch2() {
+    private void deliverSearch2() throws IOException {
         deliverMenu(3);
         response.sendString("<p>Type in the word(s) to search for:</p>\n");
 
@@ -466,11 +474,7 @@ class ClientHandler extends Thread {
     }
 
     private void deliverMenu(int selected) {
-        // FIXME: there are still problem with codec:
-        // for example, one file has lang ID 0x419, so codec is CP1252,
-        // but charset in html is windows-1251.
-        // it would cause problem in searching.
-        String codec = chmFile.codec;
+        // FIXME: test more, especially about searching
         response.sendHeader("text/html");
         response.sendString("<html>\n"
                 + "<head>\n"
@@ -532,7 +536,7 @@ class ClientHandler extends Thread {
                 + "    <td>\n"
                 + "      <input type=\"text\" name=\"searchdata\" "
                 + "        id=\"searchdata\" "
-                + "        value=\"" + HTMLEncode.encode(query) + "\""
+                + "        value=\"" + query + "\""
                 + "        style=\"width:100%\">"
                 + "    </td>\n"
                 + "    <td>\n"

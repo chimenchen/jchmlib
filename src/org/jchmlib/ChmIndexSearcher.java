@@ -40,7 +40,7 @@ public class ChmIndexSearcher {
         results.sort(new Comparator<IndexSearchResult>() {
             @Override
             public int compare(IndexSearchResult r1, IndexSearchResult r2) {
-                return new Integer(r2.count).compareTo(new Integer(r1.count));
+                return new Integer(r2.count).compareTo(r1.count);
             }
         });
 

@@ -67,8 +67,6 @@ task dmg(dependsOn: appJar) {
 
     file("${buildDir}/deploy").mkdirs()
 
-    println System.getProperty("java.home")+"/../bin/javapackager"
-
     doLast { exec {
         executable System.getProperty("java.home")+"/../bin/javapackager"
         args "-deploy",
@@ -85,7 +83,7 @@ task dmg(dependsOn: appJar) {
 }
 
 repositories {
-    maven { url 'http://maven.aliyun.com/nexus/content/groups/public/' }
+    jcenter()
 }
 
 dependencies {

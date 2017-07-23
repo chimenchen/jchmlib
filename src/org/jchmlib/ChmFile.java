@@ -205,7 +205,7 @@ public class ChmFile {
     private void readInitialHeaderAndDirectory() throws IOException {
         ByteBuffer bb = fetchBytesOrFail(0, CHM_ITSF_V3_LEN, "Failed to read ITSF header");
         ChmItsfHeader itsfHeader = new ChmItsfHeader(bb);
-        LOG.fine(String.format("Language ID: %d, 0x%x", itsfHeader.langId, itsfHeader.langId));
+        LOG.info(String.format("Language ID: %d, 0x%x", itsfHeader.langId, itsfHeader.langId));
 
         langIDInItsfHeader = itsfHeader.langId;
         // dirOffset = itsfHeader.dirOffset;
@@ -217,6 +217,7 @@ public class ChmFile {
     private void readDirectory(long dirOffset) throws IOException {
         ByteBuffer bb = fetchBytesOrFail(dirOffset, CHM_ITSP_V1_LEN, "Failed to read ITSP header");
         ChmItspHeader itspHeader = new ChmItspHeader(bb);
+        LOG.info(String.format("Language ID in ITSP header: 0x%x", itspHeader.langID));
 
         // grab essential information from ITSP header
         dirOffset += itspHeader.headerLen;
@@ -338,12 +339,21 @@ public class ChmFile {
         if (home_file == null) {
             home_file = "";
         }
+        if (home_file.equals("/")) {
+            if (resolveObject("/index.html") != null) {
+                home_file = "/index.html";
+            } else if (resolveObject("/index.htm") != null) {
+                home_file = "/index.htm";
+            }
+        }
         if (title == null || title.length() == 0) {
             title = filename.replaceFirst("[.][^.]+$", "")
                     .replaceAll(".*[\\\\/]|\\.[^.]*$‌​", "");
         }
         if (codec == null || codec.length() == 0) {
+            // FIXME: this langID may be wrong.
             codec = EncodingHelper.findCodec(langIDInItsfHeader);
+            LOG.info("Fallback Encoding: " + codec);
         }
         if (generator == null) {
             generator = "";
@@ -380,17 +390,17 @@ public class ChmFile {
                     break;
                 case 2:
                     home_file = "/" + ByteBufferHelper.parseUTF8(buf, len);
-                    LOG.fine("home file: " + home_file);
+                    LOG.info("home file: " + home_file);
                     break;
                 case 3:
                     title = ByteBufferHelper.parseString(buf, len, codec);
-                    LOG.fine("title: " + title);
+                    LOG.info("title: " + title);
                     break;
                 case 4:
                     detectedLCID = buf.getInt();
                     codec = EncodingHelper.findCodec(detectedLCID);
-                    LOG.fine("LCID: 0x" + Integer.toHexString(detectedLCID));
-                    LOG.fine("Encoding: " + codec);
+                    LOG.info("LCID: 0x" + Integer.toHexString(detectedLCID));
+                    LOG.info("Encoding: " + codec);
                     ByteBufferHelper.skip(buf, len - 4);
                     break;
                 case 9:
@@ -618,7 +628,11 @@ public class ChmFile {
 
             if (unitTypeMatched(ui, type_bits, filter_bits)) {
                 // call the enumerator
-                e.enumerate(ui);
+                try {
+                    e.enumerate(ui);
+                } catch (ChmStopEnumeration ignored) {
+                    break;
+                }
             }
         }
     }
@@ -641,7 +655,11 @@ public class ChmFile {
         for (ChmUnitInfo ui : dirMap.values()) {
             if (unitTypeMatched(ui, type_bits, filter_bits)) {
                 // call the enumerator
-                e.enumerate(ui);
+                try {
+                    e.enumerate(ui);
+                } catch (ChmStopEnumeration ignored) {
+                    break;
+                }
             }
         }
     }
@@ -744,16 +762,4 @@ public class ChmFile {
             return null;
         }
     }
-
-    /**
-     * Parse a string using default encoding.
-     * <p>
-     * The default encoding is originally set to "UTF-8",
-     * and is gradually set to the actual encoding of the
-     * .chm file in <code>initMiscFiles()</code>.
-     */
-    private String parseString(ByteBuffer bb, int strLen) throws IOException {
-        return ByteBufferHelper.parseString(bb, strLen, codec);
-    }
-
 }

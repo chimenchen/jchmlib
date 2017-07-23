@@ -22,16 +22,7 @@ public class HttpRequest {
     /**
      * Request METHODS.
      */
-    public static final String
-            __GET = "GET",
-            __POST = "POST",
-            __HEAD = "HEAD",
-            __PUT = "PUT",
-            __OPTIONS = "OPTIONS",
-            __DELETE = "DELETE",
-            __TRACE = "TRACE",
-            __CONNECT = "CONNECT",
-            __MOVE = "MOVE";
+    public static final String __GET = "GET";
 
     private BufferedReader reader;
 
@@ -53,11 +44,9 @@ public class HttpRequest {
         this.encoding = encoding;
 
         try {
-            reader = new BufferedReader(new InputStreamReader(input,
-                    encoding));
+            reader = new BufferedReader(new InputStreamReader(input, encoding));
         } catch (UnsupportedEncodingException e) {
-            System.err.println("Encoding " + encoding
-                    + " unsupported:\n" + e);
+            System.err.println("Encoding " + encoding + " unsupported:\n" + e);
             reader = new BufferedReader(new InputStreamReader(input));
         }
 
@@ -106,22 +95,6 @@ public class HttpRequest {
     }
 
     /**
-     * Returns the name of the character encoding used in the body
-     * of this request.
-     */
-    public String getCharacterEncoding() {
-        return encoding;
-    }
-
-    /**
-     * Overrides the name of the character encoding used in the body
-     * of this request.
-     */
-    public void setCharacterEncoding(String env) {
-        encoding = env;
-    }
-
-    /**
      * Returns the MIME type of the body of the request.
      */
     public String getContentType() {
@@ -155,16 +128,6 @@ public class HttpRequest {
     }
 
     /**
-     * Returns Map of Parameters.
-     */
-    public HashMap<String, String> getParameters() {
-        if (!paramsExtracted) {
-            extractParameters();
-        }
-        return parameters;
-    }
-
-    /**
      * Returns the request path.
      */
     public String getPath() {
@@ -175,18 +138,11 @@ public class HttpRequest {
         String rawPath = uri.getRawPath();
         try {
             // path of CHM object is encoded using UTF8.
+            // FIXME: need to test
             return UDecoder.decode(rawPath, "UTF8", false);
         } catch (Exception e) {
             return null;
         }
-    }
-
-    /**
-     * Retrieves the body of the request as character data using a
-     * <code> BufferedReader</code>.
-     */
-    public BufferedReader getReader() {
-        return reader;
     }
 
     /*

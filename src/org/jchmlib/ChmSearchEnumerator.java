@@ -35,9 +35,13 @@ public class ChmSearchEnumerator implements ChmEnumerator {
     private ChmFile chmFile;
     private Collection<String> keywords;
     private ArrayList<String> results;
-    private boolean tooManyResults;
+    private long startTimestamp;
+    private long filesSearched;
 
     public ChmSearchEnumerator(ChmFile chmFile, String query) {
+        startTimestamp = System.currentTimeMillis() / 1000;
+        filesSearched = 0;
+
         this.chmFile = chmFile;
         results = new ArrayList<String>();
         keywords = new ArrayList<String>();
@@ -86,17 +90,20 @@ public class ChmSearchEnumerator implements ChmEnumerator {
             keywords.add(new String(sb));
             // System.out.println(sb);
         }
-
-        tooManyResults = false;
     }
 
-    public void enumerate(ChmUnitInfo ui) {
-        if (tooManyResults) {
-            return;
+    public void enumerate(ChmUnitInfo ui) throws ChmStopEnumeration {
+        if (keywords.size() == 0) {
+            throw new ChmStopEnumeration();
         }
 
-        if (keywords.size() == 0) {
-            return;
+        filesSearched++;
+
+        if (filesSearched % 100 == 0) {
+            long timestamp = System.currentTimeMillis() / 1000;
+            if (timestamp - startTimestamp > 30) { // takes longer than 30 seconds
+                throw new ChmStopEnumeration();  // stop searching
+            }
         }
 
         ByteBuffer buf = chmFile.retrieveObject(ui);
@@ -112,17 +119,12 @@ public class ChmSearchEnumerator implements ChmEnumerator {
             Pattern p = Pattern.compile(keyword);
             Matcher m = p.matcher(data);
             if (m.find()) {
-                addResult(ui);
+                results.add(ui.path);
+                if (results.size() > 100) {
+                    throw new ChmStopEnumeration();
+                }
                 return;
             }
-        }
-    }
-
-    private void addResult(ChmUnitInfo ui) {
-        if (results.size() < 100) {
-            results.add(ui.path);
-        } else {
-            tooManyResults = true;
         }
     }
 

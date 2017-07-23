@@ -13,6 +13,7 @@ class ChmItspHeader {
     int blockLen;          /* 10 */
     int indexRoot;         /* 1c */
     int indexHead;         /* 20 */
+    int langID;            /* 30 */
 
     public ChmItspHeader(ByteBuffer bb) throws IOException {
         String signature = ByteBufferHelper.parseString(bb, 4, "ASCII");
@@ -20,14 +21,16 @@ class ChmItspHeader {
             throw new IOException("Unexpected ITSP header signature.");
         }
         try {
-            ByteBufferHelper.skip(bb, 4); // version = bb.getInt();
+            ByteBufferHelper.skip(bb, 4);
             headerLen = bb.getInt();
             ByteBufferHelper.skip(bb, 4);
             blockLen = bb.getInt();
             ByteBufferHelper.skip(bb, 8);
             indexRoot = bb.getInt();
             indexHead = bb.getInt();
-            ByteBufferHelper.skip(bb, 48); // unknown0024 = bb.getInt();
+            ByteBufferHelper.skip(bb, 12);
+            langID = bb.getInt();
+            ByteBufferHelper.skip(bb, 32);
         } catch (Exception e) {
             throw new IOException("Failed to parse ITSP header", e);
         }
