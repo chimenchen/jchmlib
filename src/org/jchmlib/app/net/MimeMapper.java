@@ -19,6 +19,7 @@ class MimeMapper {
         extToMimeType.put(".hhc", "text/text");
         extToMimeType.put(".hhk", "text/text");
         extToMimeType.put(".css", "text/css");
+        extToMimeType.put(".txt", "text/plain");
         extToMimeType.put(".gif", "image/gif");
         extToMimeType.put(".jpg", "image/jpeg");
         extToMimeType.put(".jpeg", "image/jpeg");

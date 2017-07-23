@@ -1,8 +1,5 @@
 package org.jchmlib.app;
 
-import com.apple.eawt.AppEvent.OpenFilesEvent;
-import com.apple.eawt.Application;
-import com.apple.eawt.OpenFilesHandler;
 import java.awt.BorderLayout;
 import java.awt.Desktop;
 import java.awt.Dimension;
@@ -18,6 +15,7 @@ import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 import javax.swing.AbstractAction;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -30,6 +28,8 @@ import javax.swing.filechooser.FileFilter;
 import javax.swing.table.AbstractTableModel;
 
 public class ChmWebApp {
+
+    private static final Logger LOG = Logger.getLogger(ChmWebApp.class.getName());
 
     private final ArrayList<ChmWeb> servers = new ArrayList<>();
 
@@ -312,7 +312,7 @@ public class ChmWebApp {
         servers.add(server);
     }
 
-    private void openFile(File file) {
+    void openFile(File file) {
         ChmWeb server = new ChmWeb();
         if (server.serveChmFile(0, file.getAbsolutePath())) {
             addServer(server);
@@ -329,15 +329,13 @@ public class ChmWebApp {
         if (!System.getProperty("os.name").contains("OS X")) {
             return;
         }
-        Application a = Application.getApplication();
-        a.setOpenFileHandler(new OpenFilesHandler() {
-            @Override
-            public void openFiles(OpenFilesEvent e) {
-                for (File file : e.getFiles()) {
-                    openFile(file);
-                }
-            }
-        });
+        try {
+            ChmWebAppSpecificPlatform sp = (ChmWebAppSpecificPlatform) (Class.forName(
+                    "org.jchmlib.app.ChmWebAppMacSupport").getConstructor().newInstance());
+            sp.initialize(this);
+        } catch (Exception ignored) {
+            LOG.info("Mac support is broken: " + ignored);
+        }
     }
 }
 
