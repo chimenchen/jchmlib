@@ -15,8 +15,11 @@ class ChmWebAppMacSupport implements ChmWebAppSpecificPlatform {
         a.setOpenFileHandler(new OpenFilesHandler() {
             @Override
             public void openFiles(OpenFilesEvent e) {
-                for (File file : e.getFiles()) {
-                    app.openFile(file);
+                for (Object obj : e.getFiles()) {
+                    File file = (File) obj;
+                    if (file != null) {
+                        app.openFile(file);
+                    }
                 }
             }
         });
