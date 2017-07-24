@@ -1,6 +1,5 @@
 package org.jchmlib.app;
 
-import java.awt.BorderLayout;
 import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.datatransfer.DataFlavor;
@@ -22,11 +21,12 @@ import javax.swing.JFrame;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
+import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 import javax.swing.filechooser.FileFilter;
-import javax.swing.table.AbstractTableModel;
+import javax.swing.table.DefaultTableModel;
 
 public class ChmWebApp {
 
@@ -34,7 +34,9 @@ public class ChmWebApp {
 
     private final ArrayList<ChmWeb> servers = new ArrayList<ChmWeb>();
 
-    private JFrame frame;
+    private JFrame frame = null;
+    private JTable table = null;
+    private ChmWebTableModel model = null;
     private JFileChooser fileChooser = null;
 
     private static void PrintUsage() {
@@ -107,7 +109,9 @@ public class ChmWebApp {
     }
 
     private void startGui() {
-        JTable table = new JTable(new ChmWebTableModel(servers)) {
+        model = new ChmWebTableModel(servers);
+
+        table = new JTable(model) {
             //Implement table cell tool tips.
             public String getToolTipText(MouseEvent e) {
                 java.awt.Point p = e.getPoint();
@@ -152,16 +156,12 @@ public class ChmWebApp {
                     serversToClose.add(server);
                 }
 
-                SwingUtilities.invokeLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        for (ChmWeb server : serversToClose) {
-                            server.stopServer();
-                            servers.remove(server);
-                        }
-                        table.updateUI();
-                    }
-                });
+                for (ChmWeb server : serversToClose) {
+                    server.stopServer();
+                    servers.remove(server);
+                }
+
+                model.fireTableDataChanged();
             }
         });
         popup.add(menuItemCloseServer);
@@ -195,7 +195,6 @@ public class ChmWebApp {
                     for (File file : files) {
                         openFile(file);
                     }
-                    table.updateUI();
                 }
             }
         });
@@ -249,17 +248,17 @@ public class ChmWebApp {
         });
 
         table.setAutoResizeMode(JTable.AUTO_RESIZE_NEXT_COLUMN);
-        table.getColumnModel().getColumn(0).setPreferredWidth(20);
-        table.getColumnModel().getColumn(1).setPreferredWidth(200);
+        table.getColumnModel().getColumn(0).setPreferredWidth(50);
+        table.getColumnModel().getColumn(1).setPreferredWidth(250);
         table.getColumnModel().getColumn(2).setPreferredWidth(200);
+        table.setPreferredScrollableViewportSize(new Dimension(500, 200));
+        table.setFillsViewportHeight(true);
 
-        // FIXME: layout problem, the table is not scrollable
+        JScrollPane scrollPane = new JScrollPane(table);
+
         frame = new JFrame("ChmWeb");
-        frame.add(table.getTableHeader(), BorderLayout.PAGE_START);
-        frame.add(table);
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        frame.setSize(600, 500);
-        frame.setPreferredSize(new Dimension(600, 500));
+        frame.add(scrollPane);
         frame.pack();
 
         frame.setDropTarget(new DropTarget() {
@@ -282,10 +281,9 @@ public class ChmWebApp {
                     for (File file : droppedFiles) {
                         openFile(file);
                     }
-                    table.updateUI();
                     evt.dropComplete(true);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    LOG.fine("Error in drop: " + e);
                 }
             }
         });
@@ -315,10 +313,13 @@ public class ChmWebApp {
     }
 
     private void addServer(ChmWeb server) {
+        servers.add(server);
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-                servers.add(server);
+                if (model != null) {
+                    model.fireTableDataChanged();
+                }
                 openInBrowser(server);
             }
         });
@@ -350,10 +351,10 @@ public class ChmWebApp {
     }
 }
 
-class ChmWebTableModel extends AbstractTableModel {
+class ChmWebTableModel extends DefaultTableModel {
 
     private final String[] columnNames = {"Port", "Title", "File Path"};
-    private final ArrayList<ChmWeb> servers;
+    private ArrayList<ChmWeb> servers;
 
     ChmWebTableModel(ArrayList<ChmWeb> servers) {
         this.servers = servers;
@@ -368,11 +369,14 @@ class ChmWebTableModel extends AbstractTableModel {
     }
 
     public int getRowCount() {
+        if (servers == null) {
+            return 0;
+        }
         return servers.size();
     }
 
     public Object getValueAt(int row, int col) {
-        if (row < 0 || row >= servers.size()) {
+        if (row < 0 || row >= getRowCount()) {
             return null;
         }
         if (col < 0 || col >= getColumnCount()) {
