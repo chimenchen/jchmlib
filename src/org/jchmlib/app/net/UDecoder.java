@@ -18,6 +18,10 @@ public class UDecoder {
 
     private static final Logger LOG = Logger.getLogger(UDecoder.class.getName());
 
+    /**
+     * Web browser encodes most URIs using UTF-8, but when you submit a form,
+     * the contents of the input boxes are encoded in the current page encoding.
+     */
     public static String decode(String s, String enc, boolean query) {
         LOG.fine(String.format("URL decode (%s): %s", enc, s));
         if (s == null || enc == null || enc.length() == 0) {

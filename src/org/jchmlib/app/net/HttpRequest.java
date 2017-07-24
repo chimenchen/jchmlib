@@ -137,7 +137,6 @@ public class HttpRequest {
 
         String rawPath = uri.getRawPath();
         try {
-            // FIXME: need to test
             return UDecoder.decode(rawPath, "UTF8", false);
         } catch (Exception e) {
             return null;

@@ -475,7 +475,6 @@ class ClientHandler extends Thread {
     }
 
     private void deliverMenu(int selected) {
-        // FIXME: test more, especially about searching
         response.sendHeader("text/html");
         response.sendString("<html>\n"
                 + "<head>\n"
