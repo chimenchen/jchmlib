@@ -351,7 +351,7 @@ public class ChmFile {
                     .replaceAll(".*[\\\\/]|\\.[^.]*$", "");
         }
         if (codec == null || codec.length() == 0) {
-            // FIXME: this langID may be wrong.
+            // this langID may still be wrong.
             codec = EncodingHelper.findCodec(langIDInItsfHeader);
             LOG.info("Fallback Encoding: " + codec);
         }
@@ -466,32 +466,25 @@ public class ChmFile {
                 return null;
             }
 
-            do {
-                ByteBuffer buf0 = decompressRegion(ui.start + addr, len);
-                if (buf0 == null) {
-                    // System.out.println("nothing!!!!!");
+            long numSaved = 0;
+            while (numSaved < len) {
+                ByteBuffer buf0 = decompressRegion(ui.start + addr + numSaved, len - numSaved);
+                if (buf0 == null || buf0.remaining() == 0) {
                     break;
                 }
 
-                // FIXME: rewrite this part
-                int swath = buf0.limit() - buf0.position();
-                byte[] bytes = new byte[swath];
                 if (buf == null) {
                     buf = ByteBuffer.allocate((int) len);
                     buf.order(ByteOrder.LITTLE_ENDIAN);
                 }
-                while (buf0.hasRemaining()) {
-                    buf0.get(bytes);
-                    buf.put(bytes);
-                }
 
-                len -= swath;
-                addr += swath;
-
-            } while (len > 0);
+                int numRead = buf0.remaining();
+                buf.put(buf0.array(), buf0.arrayOffset() + buf0.position(), numRead);
+                numSaved += numRead;
+            }
 
             if (buf != null) {
-                // buf.limit(buf.position());
+                buf.limit((int) numSaved);
                 buf.position(0);    // wind to the start of the buffer
             }
         }
