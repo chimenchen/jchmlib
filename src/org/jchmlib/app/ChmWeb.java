@@ -40,6 +40,7 @@ public class ChmWeb extends Thread {
     private ServerSocket listen_socket;
     private ChmFile chmFile;
     private String chmFilePath = null;
+    private String codec = "UTF8";
     private boolean isRunningFromJar;
     private String resourcesPath;
 
@@ -52,6 +53,19 @@ public class ChmWeb extends Thread {
         }
     }
 
+    // reason: some CHM file may use the wrong codec.
+    private String fixCodec(String originCodec) {
+        // for CJK or the like, use the origin codec.
+        // see EncodingHelper for codec names.
+        if (!originCodec.equalsIgnoreCase("Latin1") &&
+                !originCodec.startsWith("CP")) {
+            return originCodec;
+        }
+
+        return "UTF8";
+    }
+
+
     public boolean serveChmFile(int port, String chmFileName) {
         if (getState() == State.RUNNABLE) {  // already started
             return false;
@@ -60,6 +74,7 @@ public class ChmWeb extends Thread {
         try {
             chmFilePath = chmFileName;
             chmFile = new ChmFile(chmFileName);
+            codec = fixCodec(chmFile.codec);
         } catch (Exception e) {
             System.err.println("Failed to open this CHM file.");
             e.printStackTrace();
@@ -126,7 +141,7 @@ public class ChmWeb extends Thread {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     Socket client_socket = listen_socket.accept();
-                    new ClientHandler(client_socket, chmFile,
+                    new ClientHandler(client_socket, chmFile, codec,
                             isRunningFromJar, resourcesPath);
                 } catch (SocketException ignored) {
                     break;
@@ -178,24 +193,22 @@ class ClientHandler extends Thread {
     /* used in printTopicsTree */
     private int n;
 
-    public ClientHandler(Socket client_socket, ChmFile file,
+    public ClientHandler(Socket client_socket, ChmFile file, String codec,
             boolean isRunningFromJar, String resourcesPath) {
-        chmFile = file;
         client = client_socket;
+        chmFile = file;
+        this.codec = codec;
         this.isRunningFromJar = isRunningFromJar;
         this.resourcesPath = resourcesPath;
 
-        codec = fixCodec(chmFile.codec);  // FIXME: can be done only once
         try {
             request = new HttpRequest(client.getInputStream(), codec);
             response = new HttpResponse(client.getOutputStream(), codec);
         } catch (IOException e) {
-            // System.err.println(e);
             e.printStackTrace();
             try {
                 client.close();
             } catch (IOException e2) {
-                // System.err.println(e);
                 e.printStackTrace();
             }
             return;
@@ -207,18 +220,6 @@ class ClientHandler extends Thread {
         }
 
         start();
-    }
-
-    // reason: some CHM file may use the wrong codec.
-    private String fixCodec(String originCodec) {
-        // for CJK or the like, use the origin codec.
-        // see EncodingHelper for codec names.
-        if (!originCodec.equalsIgnoreCase("Latin1") &&
-                !originCodec.startsWith("CP")) {
-            return originCodec;
-        }
-
-        return "UTF8";
     }
 
     public void run() {
