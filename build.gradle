@@ -1,4 +1,15 @@
+plugins {
+    id "edu.sc.seis.launch4j" version "2.3.0"
+}
+
 apply plugin: "java"
+
+dependencies {
+    // to compile Mac specific classes on non-Mac platform
+    compileOnly "com.yuvimasory:orange-extensions:1.3.0"
+}
+
+
 version = "0.2"
 
 sourceSets {
@@ -13,19 +24,19 @@ sourceSets {
 compileJava {
     options.compilerArgs << "-XDignore.symbol.file=true" << "-Xlint:unchecked"
     options.fork = true
-    options.forkOptions.executable = 'javac'
+    options.forkOptions.executable = "javac"
 }
 
-def mainClass = "org.jchmlib.app.ChmWebApp"
+def mainClassName = "org.jchmlib.app.ChmWebApp"
 
 task appJar(type: Jar) {
     baseName = "ChmWeb"
 
     manifest {
         attributes(
-                "Implementation-Title": "ChmWeb",
+                "Implementation-Title": baseName,
                 "Implementation-Version": version,
-                "Main-Class": mainClass)
+                "Main-Class": mainClassName)
     }
 
     from(sourceSets.main.output)
@@ -47,34 +58,28 @@ task libJar(type: Jar) {
 }
 
 jar {
-    // reset actions
-    actions = []
-    // add your action that performs the work based
-    // on the configuration (e.g. 'source') of this task
-    doLast {
-        println "jar"
-    }
+    actions = [] // reset actions
+    dependsOn libJar, appJar
 }
-
-jar.dependsOn libJar, appJar
 
 // $(/usr/libexec/java_home)/bin/javapackager -deploy -native dmg -srcfiles build/libs/ChmWeb-0.2.jar -appclass org.jchmlib.app.ChmWebApp -name ChmWeb -outdir build/deploy -outfile ChmWeb -v -BappVersion=0.2
 
 task dmg(dependsOn: appJar) {
-    def buildDir = "build"
-    def appName = "ChmWeb"
-    def jarFile = "${buildDir}/libs/ChmWeb-${version}.jar"
+    // NOTE: need to change Info.plist if version or appName is changed.
+    def appName = appJar.baseName
+    def jarFile = appJar.outputs.files[0].path
+    def deployDir = "${buildDir}/deploy"
 
-    file("${buildDir}/deploy").mkdirs()
+    file(deployDir).mkdirs()
 
     doLast { exec {
         executable System.getProperty("java.home")+"/../bin/javapackager"
         args "-deploy",
              "-title", appName,
              "-name", appName,
-             "-appclass", mainClass,
+             "-appclass", mainClassName,
              "-native", "dmg",
-             "-outdir", "$buildDir/deploy",
+             "-outdir", deployDir,
              "-outfile", appName,
              "-srcfiles", jarFile,
              "-BappVersion=$version",
@@ -82,12 +87,12 @@ task dmg(dependsOn: appJar) {
     }}
 }
 
-repositories {
-    jcenter()
-}
-
-dependencies {
-    // to compile Mac specific classes on non-Mac platform
-    compileOnly 'com.yuvimasory:orange-extensions:1.3.0'
+launch4j {
+  mainClassName = mainClassName
+  icon = "${project.rootDir}/package/windows/ChmWeb.ico"
+  jar = appJar.outputs.files[0].path
+  outfile = appJar.baseName + ".exe"
+  productName = appJar.baseName
+  fileDescription = "A web server for viewing CHM files in web browser"
 }
 
