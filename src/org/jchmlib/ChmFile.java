@@ -205,7 +205,7 @@ public class ChmFile {
     private void readInitialHeaderAndDirectory() throws IOException {
         ByteBuffer bb = fetchBytesOrFail(0, CHM_ITSF_V3_LEN, "Failed to read ITSF header");
         ChmItsfHeader itsfHeader = new ChmItsfHeader(bb);
-        LOG.info(String.format("Language ID: %d, 0x%x", itsfHeader.langId, itsfHeader.langId));
+        LOG.info(String.format("Language ID: 0x%x", itsfHeader.langId));
 
         langIDInItsfHeader = itsfHeader.langId;
         // dirOffset = itsfHeader.dirOffset;
@@ -217,7 +217,6 @@ public class ChmFile {
     private void readDirectory(long dirOffset) throws IOException {
         ByteBuffer bb = fetchBytesOrFail(dirOffset, CHM_ITSP_V1_LEN, "Failed to read ITSP header");
         ChmItspHeader itspHeader = new ChmItspHeader(bb);
-        LOG.info(String.format("Language ID in ITSP header: 0x%x", itspHeader.langID));
 
         // grab essential information from ITSP header
         dirOffset += itspHeader.headerLen;
@@ -381,15 +380,15 @@ public class ChmFile {
             int len = buf.getShort();
             switch (type) {
                 case 0:
-                    topics_file = "/" + ByteBufferHelper.parseUTF8(buf, len);
+                    topics_file = "/" + ByteBufferHelper.parseString(buf, len, codec);
                     LOG.fine("topics file: " + topics_file);
                     break;
                 case 1:
-                    index_file = "/" + ByteBufferHelper.parseUTF8(buf, len);
+                    index_file = "/" + ByteBufferHelper.parseString(buf, len, codec);
                     LOG.fine("index file: " + index_file);
                     break;
                 case 2:
-                    home_file = "/" + ByteBufferHelper.parseUTF8(buf, len);
+                    home_file = "/" + ByteBufferHelper.parseString(buf, len, codec);
                     LOG.info("home file: " + home_file);
                     break;
                 case 3:
@@ -399,12 +398,12 @@ public class ChmFile {
                 case 4:
                     detectedLCID = buf.getInt();
                     codec = EncodingHelper.findCodec(detectedLCID);
-                    LOG.info("LCID: 0x" + Integer.toHexString(detectedLCID));
+                    LOG.info(String.format("Language ID: 0x%x", detectedLCID));
                     LOG.info("Encoding: " + codec);
                     ByteBufferHelper.skip(buf, len - 4);
                     break;
                 case 9:
-                    generator = ByteBufferHelper.parseUTF8(buf, len);
+                    generator = ByteBufferHelper.parseString(buf, len, codec);
                     LOG.fine("Generator: " + generator);
                     break;
                 default:

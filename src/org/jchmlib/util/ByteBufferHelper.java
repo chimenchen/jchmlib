@@ -52,13 +52,6 @@ public class ByteBufferHelper {
     }
 
     /**
-     * Parses a utf-8 string.
-     */
-    public static String parseUTF8(ByteBuffer bb, int strLen) {
-        return parseString(bb, strLen, "UTF-8");
-    }
-
-    /**
      * Parses a String using the named Charset Encoding.
      */
     public static String parseString(ByteBuffer bb, int strLen, String codec) {

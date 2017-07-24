@@ -34,7 +34,7 @@ public class ChmUnitInfo {
             // parse str len
             int strLen = (int) ByteBufferHelper.parseCWord(bb);
             // parse path
-            path = ByteBufferHelper.parseUTF8(bb, strLen);  // Nonnull
+            path = ByteBufferHelper.parseString(bb, strLen, "UTF8");  // Nonnull
             // parse info
             space = (int) ByteBufferHelper.parseCWord(bb);
             start = ByteBufferHelper.parseCWord(bb);
