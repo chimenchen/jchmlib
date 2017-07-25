@@ -18,7 +18,6 @@ public class ChmIndexSearcher {
 
     private final ChmFile chmFile;
     public boolean notSearchable = false;
-    private byte[] queryAsBytes;
     private ChmUnitInfo uiMain;
     private ChmUnitInfo uiTopics;
     private ChmUnitInfo uiUrlTbl;
@@ -27,13 +26,15 @@ public class ChmIndexSearcher {
     private ChmFtsHeader ftsHeader = null;
     private WordBuilder wordBuilder = null;
     private ArrayList<IndexSearchResult> results;
+    private HashMap<String, Integer> urlToHitCount = null;
+
 
     public ChmIndexSearcher(ChmFile chmFile) {
         this.chmFile = chmFile;
     }
 
     public HashMap<String, String> getResults() {
-        if (results == null) {
+        if (results == null || results.size() == 0) {
             return null;
         }
 
@@ -52,31 +53,92 @@ public class ChmIndexSearcher {
         return finalResults;
     }
 
-    public void search(String query, boolean wholeWords, boolean titlesOnly) {
-        try {
-            searchWithoutCatch(query, wholeWords, titlesOnly);
-        } catch (Exception e) {
-            LOG.info("Error in index search" + e);
-        }
-    }
-
-    // FIXME: improve support for CJK.
     // there are words for CJK characters (each with only one CJK characters),
     // rather than for CJK words (each with multiple CJK characters).
-    public void searchWithoutCatch(String query, boolean wholeWords, boolean titlesOnly)
-            throws IOException {
+    // to solve this problem, each multibyte char is made a sub-query.
+    // that is, we search each multibyte char and combine the results.
+
+    private ArrayList<String> splitQuery(String originalQuery, String codec) {
+        ArrayList<String> queryList = new ArrayList<String>();
+        StringBuilder sb = new StringBuilder();
+        for (char c : originalQuery.toCharArray()) {
+            byte[] bytesForChar;
+            try {
+                bytesForChar = String.valueOf(c).getBytes(codec);
+            } catch (UnsupportedEncodingException e) {
+                LOG.info("invalid char " + e);
+                continue;
+            }
+            if (bytesForChar.length > 1) {
+                if (sb.length() > 0) {
+                    queryList.add(sb.toString());
+                    sb = new StringBuilder();
+                }
+                queryList.add(String.valueOf(c));
+            } else if (c == ' ') {
+                if (sb.length() > 0) {
+                    queryList.add(sb.toString());
+                    sb = new StringBuilder();
+                }
+            } else {
+                sb.append(c);
+            }
+        }
+        if (sb.length() > 0) {
+            queryList.add(sb.toString());
+        }
+        return queryList;
+    }
+
+    public void search(String query, boolean wholeWords, boolean titlesOnly) {
         results = null;
+        urlToHitCount = null;
 
         if (notSearchable || query == null || query.equals("")) {
             return;
         }
         LOG.info(" <=> query " + query);
 
+        ArrayList<String> queryList = splitQuery(query, chmFile.codec);
+        for (int i = 0; i < queryList.size(); i++) {
+            String subQuery = queryList.get(i);
+            try {
+                searchWithoutCatch(subQuery, wholeWords, titlesOnly);
+            } catch (Exception e) {
+                LOG.info("Error in index search" + e);
+            }
+
+            if (i == 0 || results == null) {
+                continue;
+            }
+
+            int expectedHitCount = i + 1;
+            ArrayList<IndexSearchResult> newResults = new ArrayList<IndexSearchResult>();
+            for (IndexSearchResult result : results) {
+                if (urlToHitCount.containsKey(result.url) &&
+                        urlToHitCount.get(result.url) == expectedHitCount) {
+                    newResults.add(result);
+                } else {
+                    urlToHitCount.remove(result.url);
+                }
+            }
+            results = newResults;
+        }
+    }
+
+    private void searchWithoutCatch(String query, boolean wholeWords, boolean titlesOnly)
+            throws IOException {
+        LOG.info(" <=> sub query " + query);
+        byte[] queryAsBytes;
         try {
             queryAsBytes = query.toLowerCase().getBytes(chmFile.codec);
         } catch (UnsupportedEncodingException ignored) {
             LOG.info("failed to decode query: " + query);
             return;
+        }
+
+        if (queryAsBytes.length > query.length()) {
+            wholeWords = false;
         }
 
         uiMain = chmFile.resolveObject("/$FIftiMain");
@@ -113,7 +175,7 @@ public class ChmIndexSearcher {
             }
         }
 
-        int nodeOffset = getLeafNodeOffset();
+        int nodeOffset = getLeafNodeOffset(queryAsBytes);
         if (nodeOffset <= 0) {
             return;
         }
@@ -166,7 +228,7 @@ public class ChmIndexSearcher {
                 wordBuilder.startsWith(queryAsBytes) && nodeOffset != 0);
     }
 
-    public void initWordBuilder() {
+    private void initWordBuilder() {
         if (wordBuilder == null) {
             if (ftsHeader != null && chmFile != null) {
                 wordBuilder = new WordBuilder(ftsHeader.maxWordLen, chmFile.codec);
@@ -176,16 +238,16 @@ public class ChmIndexSearcher {
         }
     }
 
-    private int getLeafNodeOffset() {
+    private int getLeafNodeOffset(byte[] queryAsBytes) {
         try {
-            return getLeafNodeOffsetWithoutCatch();
+            return getLeafNodeOffsetWithoutCatch(queryAsBytes);
         } catch (Exception e) {
             LOG.info("Failed to get leaf node offset" + e);
             return 0;
         }
     }
 
-    private int getLeafNodeOffsetWithoutCatch() throws IOException {
+    private int getLeafNodeOffsetWithoutCatch(byte[] queryAsBytes) throws IOException {
         int lastNodeOffset = 0;
         int nodeOffset = ftsHeader.nodeOffset;
         int buffSize = ftsHeader.nodeLen;
@@ -312,13 +374,23 @@ public class ChmIndexSearcher {
             // results = new LinkedHashMap<>();
             results = new ArrayList<IndexSearchResult>();
         }
-        if (results.size() < 100) {
+        if (urlToHitCount == null) {
+            urlToHitCount = new HashMap<String, Integer>();
+        }
+        if (results.size() < 300) {
             // results.put(url, topic);
             IndexSearchResult result = new IndexSearchResult();
             result.url = url;
             result.topic = topic;
             result.count = count;
             results.add(result);
+
+            if (urlToHitCount.containsKey(url)) {
+                urlToHitCount.put(url, urlToHitCount.get(url) + 1);
+            } else {
+                urlToHitCount.put(url, 1);
+            }
+
             return true;
         } else {
             LOG.fine("Too many results.");
@@ -335,9 +407,9 @@ public class ChmIndexSearcher {
 
     class WordBuilder {
 
-        byte[] wordBuffer;
+        final byte[] wordBuffer;
+        final String codec;
         int wordLength;
-        String codec;
 
         WordBuilder(int maxWordLength, String codec) {
             wordBuffer = new byte[maxWordLength];
