@@ -353,6 +353,12 @@ public class ChmFile {
             // this langID may still be wrong.
             codec = EncodingHelper.findCodec(langIDInItsfHeader);
             LOG.info("Fallback Encoding: " + codec);
+        } else if (codec.startsWith("CP")) {
+            String codecInItsfHeader = EncodingHelper.findCodec(langIDInItsfHeader);
+            if (!codecInItsfHeader.startsWith("CP")) { // better
+                codec = codecInItsfHeader;
+                LOG.info("Fixed Encoding: " + codec);
+            }
         }
         if (generator == null) {
             generator = "";
