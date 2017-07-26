@@ -180,6 +180,8 @@ public class ChmWeb extends Thread {
  */
 class ClientHandler extends Thread {
 
+    private static final Logger LOG = Logger.getLogger(ClientHandler.class.getName());
+
     private final Socket client;
     private final ChmFile chmFile;
     private final boolean isRunningFromJar;
@@ -203,6 +205,11 @@ class ClientHandler extends Thread {
 
         try {
             request = new HttpRequest(client.getInputStream(), codec);
+            requestedFile = request.getPath();
+            if (requestedFile.startsWith("/chmweb/")) {
+                codec = "UTF8";
+                request.setEncoding(codec);  // for parsing parameters
+            }
             response = new HttpResponse(client.getOutputStream(), codec);
         } catch (IOException e) {
             e.printStackTrace();
@@ -214,7 +221,6 @@ class ClientHandler extends Thread {
             return;
         }
 
-        requestedFile = request.getPath();
         if (requestedFile == null || requestedFile.length() == 0) {
             return;
         }
@@ -228,14 +234,15 @@ class ClientHandler extends Thread {
                 deliverSpecial();
             } else if (requestedFile.startsWith("/@")) {
                 deliverSpecial();
+            } else if (requestedFile.startsWith("/chmweb/")) {
+                deliverSpecial2();
             } else if (requestedFile.endsWith("/")) {// this is a directory
                 deliverDir();
             } else { // this is a file
                 deliverFile();
             }
         } catch (IOException e) {
-            // System.err.println(e);
-            e.printStackTrace();
+            LOG.fine("Failed to handle request:  " + e);
         } finally {
             try {
                 client.close();
@@ -308,6 +315,160 @@ class ClientHandler extends Thread {
         }
     }
 
+    private void deliverSpecial2() throws IOException {
+        requestedFile = requestedFile.substring("/chmweb/".length());
+        if (requestedFile.length() == 0 || requestedFile.equalsIgnoreCase("index.html")) {
+            deliverMain2();
+        } else if (requestedFile.equalsIgnoreCase("topics.json")) {
+            deliverTree2();
+        } else if (requestedFile.equalsIgnoreCase("files.json")) {
+            deliverFilesTree2();
+        } else if (requestedFile.equalsIgnoreCase("search.json")) {
+            deliverUnifiedSearch2();
+        } else {
+            deliverResource(requestedFile);
+        }
+    }
+
+    private void deliverMain2() {
+        response.sendHeader("text/html");
+        response.sendLine("<html>\n"
+                + "<head>\n"
+                + "<meta http-equiv=\"Content-Type\" "
+                + " content=\"text/html; charset=" + codec
+                + "\">\n"
+                + "<title>" + chmFile.title + "</title>\n"
+                + "</head>\n"
+                + "<frameset cols=\"200, *\">\n"
+                + "  <frame src=\"/chmweb/sidebar2.html\" name=\"treefrm\">\n"
+                + "  <frame src=\"" + chmFile.home_file + "\" name=\"basefrm\">\n"
+                + "</frameset>\n"
+                + "</html>");
+    }
+
+
+    private void deliverTree2() throws IOException {
+        //        var topics_tree = [
+        //    ["page1.html", "Folder 1", [
+        //      ["page1.html", "Folder 1", [
+        //        ["page1.html", "File 1"],
+        //        ["page1.html", "File 1"],
+        //        ["page1.html", "File 1"],
+        //        ["page1.html", "File 1"],]],
+        //      ["page1.html", "File 1"],
+        //      ["page1.html", "File 1"],
+        //      ["page1.html", "File 1"],],],
+        //    ["page1.html", "Folder 1", [
+        //      ["page1.html", "File 1"],
+        //      ["page1.html", "File 1"],
+        //      ["page1.html", "File 1"],
+        //      ["page1.html", "File 1"],]],];
+        response.sendHeader("application/json");
+        printTopicsTree2(chmFile.getTopicsTree(), 0);
+        chmFile.releaseLargeTopicsTree();
+    }
+
+    private void printTopicsTree2(ChmTopicsTree tree, int level) {
+        if (tree == null) {
+            return;
+        }
+
+        String title = tree.title.length() > 0 ? tree.title : "untitled";
+        title = title.replace("'", "\\'");
+
+        if (level == 0) {
+            response.sendString("[");
+            for (ChmTopicsTree child : tree.children) {
+                printTopicsTree2(child, level + 1);
+            }
+            response.sendLine("]");
+        } else if (!tree.children.isEmpty()) {
+            response.sendLine(String.format("['%s', '%s', [", tree.path, title));
+            for (ChmTopicsTree child : tree.children) {
+                printTopicsTree2(child, level + 1);
+            }
+            response.sendLine("],],");
+        } else { // leaf node
+            if (tree.path.length() == 0 && title.equalsIgnoreCase("untitled")) {
+                return;
+            }
+            response.sendLine(String.format("['%s', '%s'],", tree.path, title));
+        }
+    }
+
+    private void deliverFilesTree2() {
+        response.sendHeader("application/json");
+        FilesTreeBuilder builder = new FilesTreeBuilder();
+        chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, builder);
+        ChmTopicsTree tree = builder.getFilesTree();
+        printTopicsTree2(tree, 0);
+    }
+
+    private void deliverUnifiedSearch2() throws IOException {
+        String query = request.getParameter("q");
+        if (query == null) {
+            return;
+        }
+        boolean useRegex = false;
+        String sUseRegex = request.getParameter("regex");
+        if (sUseRegex != null && sUseRegex.equals("1")) {
+            useRegex = true;
+        }
+
+        response.sendHeader("application/json");
+
+        //        {
+        //            "ok": true,
+        //            "results": [
+        //                ["url1", "topic1"],
+        //                ["url1", "topic1"],
+        //                ["url1", "topic1"],
+        //            ],
+        //        }
+        ChmIndexSearcher searcher = chmFile.getIndexSearcher();
+        if (!useRegex && !searcher.notSearchable) {
+            searcher.search(query, false, false);
+            HashMap<String, String> results = searcher.getResults();
+
+            if (results != null && results.size() > 0) {
+                response.sendLine("{'ok': true, 'results':[");
+                for (Map.Entry<String, String> entry : results.entrySet()) {
+                    String url = "/" + entry.getKey();
+                    String topic = entry.getValue();
+                    url = url.replace("'", "\\'");
+                    topic = topic.replace("'", "\\'");
+                    response.sendLine(String.format("['%s', '%s'],", url, topic));
+                }
+                response.sendLine("],}");
+            } else {
+                response.sendLine("{'ok': false}");
+            }
+
+            return;
+        }
+
+        try {
+            ChmSearchEnumerator enumerator = new ChmSearchEnumerator(chmFile, query);
+            chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, enumerator);
+            ArrayList<String> results = enumerator.getResults();
+            if (results.size() == 0) {
+                response.sendLine("{'ok': false}");
+                return;
+            }
+
+            response.sendLine("{'ok': true, 'results':[");
+            for (String url : results) {
+                String topic = chmFile.getTitleOfObject(url);
+                url = url.replace("'", "\\'");
+                topic = topic.replace("'", "\\'");
+                response.sendLine(String.format("['%s', '%s'],", url, topic));
+            }
+            response.sendLine("],}");
+        } catch (Exception e) {
+            LOG.fine("Failed to handle search:  " + e);
+        }
+    }
+
     private void deliverSpecial() throws IOException {
         if (requestedFile.startsWith("/@")) {
             requestedFile = requestedFile.substring(2);
@@ -316,19 +477,21 @@ class ClientHandler extends Thread {
         }
 
         if (requestedFile.equalsIgnoreCase("index.html")) {
+            deliverMain2();
+        } else if (requestedFile.equalsIgnoreCase("index1.html")) {
             deliverMain();
-            return;
         } else if (requestedFile.equalsIgnoreCase("tree.html")) {
             deliverTree();
-            return;
         } else if (requestedFile.equalsIgnoreCase("search.html")) {
             deliverSearch();
-            return;
         } else if (requestedFile.equalsIgnoreCase("search2.html")) {
             deliverSearch2();
-            return;
+        } else {
+            deliverResource(requestedFile);
         }
+    }
 
+    private void deliverResource(String requestedFile) throws IOException {
         if (resourcesPath != null) {
             String filename = new File(resourcesPath, requestedFile).toString();
             File f = new File(filename);
@@ -619,8 +782,7 @@ class ClientHandler extends Thread {
     }
 }
 
-// FIXME: redesign web server for better user experience.
-// especially: the topics page.
+// FIXME: remove old pages
 
 class DirChmEnumerator implements ChmEnumerator {
 
@@ -637,5 +799,70 @@ class DirChmEnumerator implements ChmEnumerator {
         out.println("\t<td><a href=\"" + ui.getPath() + "\">" + ui.getPath()
                 + "</a></td>\n");
         out.println("</tr>");
+    }
+}
+
+class FilesTreeBuilder implements ChmEnumerator {
+
+    ArrayList<ChmUnitInfo> files;
+
+    FilesTreeBuilder() {
+        files = new ArrayList<>();
+    }
+
+    public void enumerate(ChmUnitInfo ui) {
+        files.add(ui);
+    }
+
+    public ChmTopicsTree getFilesTree() {
+        ChmTopicsTree root = new ChmTopicsTree();
+        root.path = "/";
+        ChmTopicsTree currentDirNode = root;
+        for (ChmUnitInfo ui : files) {
+            String path = ui.getPath();
+            while (currentDirNode != null && !path.startsWith(currentDirNode.path)) {
+                currentDirNode = currentDirNode.parent;
+            }
+            if (currentDirNode == null) {
+                break;
+            }
+
+            String title = path.substring(currentDirNode.path.length());
+            while (true) {
+                if (title.length() == 0) {
+                    break;
+                }
+                int index = title.indexOf("/");
+                if (index <= 0 || index == title.length() - 1) {
+                    break;
+                }
+
+                String dirPart = title.substring(0, index + 1);
+                String leftPart = title.substring(index + 1);
+                ChmTopicsTree node = new ChmTopicsTree();
+                node.path = currentDirNode.path + dirPart;
+                node.title = dirPart;
+                node.parent = currentDirNode;
+                currentDirNode.children.add(node);
+                currentDirNode = node;
+
+                title = leftPart;
+            }
+
+            ChmTopicsTree node = new ChmTopicsTree();
+            node.path = path;
+            node.title = title;
+            node.parent = currentDirNode;
+            currentDirNode.children.add(node);
+
+            if (path.equals("/")) {
+                node.title = "/";
+                continue;
+            } else if (path.endsWith("/")) {
+                currentDirNode = node;
+            }
+        }
+
+        return root;
     }
 }

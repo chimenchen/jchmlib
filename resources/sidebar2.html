@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <link rel="stylesheet" href="css/chmweb.css">
+</head>
+<body>
+
+<div class="tab">
+  <button class="tablinks active" onclick="openTab(event, 'Topics')">Topics</button>
+  <button class="tablinks" onclick="openTab(event, 'Search')">Search</button>
+  <button class="tablinks" onclick="openTab(event, 'Files')">Files</button>
+</div>
+
+<div id="Topics" class="tabcontent active">
+
+  <ul class="tree" id="topics-tree">
+  </ul>
+
+</div>
+
+<div id="Search" class="tabcontent">
+  <div id="search-form">
+    <input type="image" name="go" src="img/searchicon.png" alt="Go"
+           onclick="onSearch()">
+    <input type="text" id="query" name="query" placeholder="Search.."
+           onkeypress="return onSearchEnter(event)">
+    <div>
+      <input type="checkbox" id="regex" name="regex">
+      <label for="regex">Use regex</label>
+    </div>
+  </div>
+  <div id="no-result-found" class="no-result-found hidden">
+    No result found.
+  </div>
+  <div id="search-results" class="search-results hidden">
+    <input id="toggle-highlight" type="button" value="Toggle Highlight"
+           data-toggle="off" onclick="toggleHighlight()">
+    <ol id="search-result-list">
+    </ol>
+
+  </div>
+
+</div>
+
+<div id="Files" class="tabcontent">
+  <ul class="tree" id="files-tree">
+  </ul>
+</div>
+
+<script src="js/chmweb.js"></script>
+</body>
+</html>

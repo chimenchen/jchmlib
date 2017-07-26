@@ -143,6 +143,10 @@ public class HttpRequest {
         }
     }
 
+    public void setEncoding(String encoding) {
+        this.encoding = encoding;
+    }
+
     /*
      * Extract Parameters from query string.
      */

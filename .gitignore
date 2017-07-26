@@ -29,4 +29,5 @@ build/
 .gradle/
 logging.properties
 chm/
+web/
 

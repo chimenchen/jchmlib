@@ -42,7 +42,7 @@ public final class ChmTopicsTree {
      */
     private HashMap<String, String> pathToTitle;
 
-    private ChmTopicsTree() {
+    public ChmTopicsTree() {
         title = "";
         path = "";
         children = new LinkedList<ChmTopicsTree>();
