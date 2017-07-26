@@ -68,34 +68,38 @@ function loadTopicsTree() {
 }
 
 function onTopicsTreeReceived(text) {
-
-  var topics_tree = [
-    ["page1.html", "Folder 1", [
-      ["page1.html", "Folder 1", [
-        ["page1.html", "File 1"],
-        ["page1.html", "File 1"],
-        ["page1.html", "File 1"],
-        ["page1.html", "File 1"],]],
-      ["page1.html", "File 1"],
-      ["page1.html", "File 1"],
-      ["page1.html", "File 1"],],],
-    ["page1.html", "Folder 1", [
-      ["page1.html", "File 1"],
-      ["page1.html", "File 1"],
-      ["page1.html", "File 1"],
-      ["page1.html", "File 1"],]],];
-
   if (text) {
     // console.debug(text);
     var json = eval("(" + text + ")");
     if (json) {
-      topics_tree = json;
+      var topics_tree = json;
+      var ulRoot = document.getElementById("topics-tree");
+      addTopicNodes(ulRoot, topics_tree);
+      registerFolderToggle();
+      return;
     }
   }
 
-  var ulRoot = document.getElementById("topics-tree");
-  addTopicNodes(ulRoot, topics_tree);
-  registerFolderToggle();
+  var tablinkTopics = document.getElementById("tablink-topics");
+  var tabcontentTopics = document.getElementById("Topics");
+  if (tablinkTopics) {
+    tablinkTopics.className = tablinkTopics.className.replace(" active", "");
+    tablinkTopics.className += " hidden";
+  }
+  if (tabcontentTopics) {
+    tabcontentTopics.className = tabcontentTopics.className.replace(" active",
+        "");
+    tabcontentTopics.className += " hidden";
+  }
+
+  var tablinkFiles = document.getElementById("tablink-files");
+  var tabcontentFiles = document.getElementById("Files");
+  if (tablinkFiles) {
+    tablinkFiles.className += " active";
+  }
+  if (tabcontentFiles) {
+    tabcontentFiles.className += " active";
+  }
 }
 
 function loadFiles() {
@@ -110,30 +114,18 @@ function loadFiles() {
 }
 
 function onFilesTreeReceived(text) {
-  var files = [
-    ["dir1", "dir1", [
-      ["dir/file1", "file1"],
-      ["dir/file1", "file1"],
-    ]],
-    ["dir1", "dir1", [
-      ["dir1/file1", "file1"],
-      ["dir1/file1", "file1"],
-    ]],
-    ["file1", "file1"],
-    ["file1", "file1"],
-  ];
-
   if (text) {
     // console.debug(text);
     var json = eval("(" + text + ")");
     if (json) {
-      files = json;
+      var files = json;
+      var ulRoot = document.getElementById("files-tree");
+      addTopicNodes(ulRoot, files);
+      registerFolderToggle();
+
     }
   }
 
-  var ulRoot = document.getElementById("files-tree");
-  addTopicNodes(ulRoot, files);
-  registerFolderToggle();
 }
 
 var searchInCHM = function (query, use_regex) {
