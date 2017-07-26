@@ -206,7 +206,7 @@ class ClientHandler extends Thread {
         try {
             request = new HttpRequest(client.getInputStream(), codec);
             requestedFile = request.getPath();
-            if (requestedFile.startsWith("/chmweb/")) {
+            if (requestedFile != null && requestedFile.startsWith("/chmweb/")) {
                 codec = "UTF8";
                 request.setEncoding(codec);  // for parsing parameters
             }
@@ -230,12 +230,18 @@ class ClientHandler extends Thread {
 
     public void run() {
         try {
-            if (requestedFile.equalsIgnoreCase("/favicon.ico")) {
+            if (requestedFile.equals("/")) {
+                requestedFile = requestedFile.substring(1);
+                deliverSpecial();
+            } else if (requestedFile.equalsIgnoreCase("/favicon.ico")) {
+                requestedFile = requestedFile.substring(1);
                 deliverSpecial();
             } else if (requestedFile.startsWith("/@")) {
+                requestedFile = requestedFile.substring(2);
                 deliverSpecial();
             } else if (requestedFile.startsWith("/chmweb/")) {
-                deliverSpecial2();
+                requestedFile = requestedFile.substring("/chmweb/".length());
+                deliverSpecial();
             } else if (requestedFile.endsWith("/")) {// this is a directory
                 deliverDir();
             } else { // this is a file
@@ -251,6 +257,7 @@ class ClientHandler extends Thread {
         }
     }
 
+    // FIXME: rewrite this.
     private void deliverDir() {
         response.sendHeader("text/html");
         response.sendString("<html>\n" +
@@ -262,8 +269,6 @@ class ClientHandler extends Thread {
                 "<body>\n" +
                 "<table border=0 cellspacing=0 cellpadding=0 width=100%>\n" +
                 "<tr><td align=right nowrap>" +
-                "<a href=\"" + chmFile.home_file + "\">Main Page</a>&nbsp;\n" +
-                "<a href=\"/@index.html\">Frame View</a> &nbsp;" +
                 "</td></tr>\n" +
                 "<tr><td align=left>" +
                 "<h2><u>CHM Contents:</u></h2>" +
@@ -315,22 +320,21 @@ class ClientHandler extends Thread {
         }
     }
 
-    private void deliverSpecial2() throws IOException {
-        requestedFile = requestedFile.substring("/chmweb/".length());
+    private void deliverSpecial() throws IOException {
         if (requestedFile.length() == 0 || requestedFile.equalsIgnoreCase("index.html")) {
-            deliverMain2();
+            deliverMain();
         } else if (requestedFile.equalsIgnoreCase("topics.json")) {
-            deliverTree2();
+            deliverTopicsTree();
         } else if (requestedFile.equalsIgnoreCase("files.json")) {
-            deliverFilesTree2();
+            deliverFilesTree();
         } else if (requestedFile.equalsIgnoreCase("search.json")) {
-            deliverUnifiedSearch2();
+            deliverUnifiedSearch();
         } else {
             deliverResource(requestedFile);
         }
     }
 
-    private void deliverMain2() {
+    private void deliverMain() {
         response.sendHeader("text/html");
         response.sendLine("<html>\n"
                 + "<head>\n"
@@ -346,23 +350,7 @@ class ClientHandler extends Thread {
                 + "</html>");
     }
 
-
-    private void deliverTree2() throws IOException {
-        //        var topics_tree = [
-        //    ["page1.html", "Folder 1", [
-        //      ["page1.html", "Folder 1", [
-        //        ["page1.html", "File 1"],
-        //        ["page1.html", "File 1"],
-        //        ["page1.html", "File 1"],
-        //        ["page1.html", "File 1"],]],
-        //      ["page1.html", "File 1"],
-        //      ["page1.html", "File 1"],
-        //      ["page1.html", "File 1"],],],
-        //    ["page1.html", "Folder 1", [
-        //      ["page1.html", "File 1"],
-        //      ["page1.html", "File 1"],
-        //      ["page1.html", "File 1"],
-        //      ["page1.html", "File 1"],]],];
+    private void deliverTopicsTree() throws IOException {
         response.sendHeader("application/json");
         printTopicsTree2(chmFile.getTopicsTree(), 0);
         chmFile.releaseLargeTopicsTree();
@@ -396,15 +384,15 @@ class ClientHandler extends Thread {
         }
     }
 
-    private void deliverFilesTree2() {
+    private void deliverFilesTree() {
         response.sendHeader("application/json");
         FilesTreeBuilder builder = new FilesTreeBuilder();
         chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, builder);
-        ChmTopicsTree tree = builder.getFilesTree();
+        ChmTopicsTree tree = builder.getFilesTree(chmFile.home_file);
         printTopicsTree2(tree, 0);
     }
 
-    private void deliverUnifiedSearch2() throws IOException {
+    private void deliverUnifiedSearch() throws IOException {
         String query = request.getParameter("q");
         if (query == null) {
             return;
@@ -417,14 +405,6 @@ class ClientHandler extends Thread {
 
         response.sendHeader("application/json");
 
-        //        {
-        //            "ok": true,
-        //            "results": [
-        //                ["url1", "topic1"],
-        //                ["url1", "topic1"],
-        //                ["url1", "topic1"],
-        //            ],
-        //        }
         ChmIndexSearcher searcher = chmFile.getIndexSearcher();
         if (!useRegex && !searcher.notSearchable) {
             searcher.search(query, false, false);
@@ -469,28 +449,6 @@ class ClientHandler extends Thread {
         }
     }
 
-    private void deliverSpecial() throws IOException {
-        if (requestedFile.startsWith("/@")) {
-            requestedFile = requestedFile.substring(2);
-        } else if (requestedFile.equalsIgnoreCase("/favicon.ico")) {
-            requestedFile = requestedFile.substring(1);
-        }
-
-        if (requestedFile.equalsIgnoreCase("index.html")) {
-            deliverMain2();
-        } else if (requestedFile.equalsIgnoreCase("index1.html")) {
-            deliverMain();
-        } else if (requestedFile.equalsIgnoreCase("tree.html")) {
-            deliverTree();
-        } else if (requestedFile.equalsIgnoreCase("search.html")) {
-            deliverSearch();
-        } else if (requestedFile.equalsIgnoreCase("search2.html")) {
-            deliverSearch2();
-        } else {
-            deliverResource(requestedFile);
-        }
-    }
-
     private void deliverResource(String requestedFile) throws IOException {
         if (resourcesPath != null) {
             String filename = new File(resourcesPath, requestedFile).toString();
@@ -529,260 +487,7 @@ class ClientHandler extends Thread {
             response.write(buffer, 0, size);
         }
     }
-
-    private void deliverMain() {
-        response.sendHeader("text/html");
-        response.sendLine("<html>\n"
-                + "<head>\n"
-                + "<meta http-equiv=\"Content-Type\" "
-                + " content=\"text/html; charset=" + codec
-                + "\">\n"
-                + "<title>" + chmFile.title + "</title>\n"
-                + "</head>\n"
-                + "<frameset cols=\"200, *\">\n"
-                + "  <frame src=\"@tree.html\" name=\"treefrm\">\n"
-                + "  <frame src=\"" + chmFile.home_file + "\" name=\"basefrm\">\n"
-                + "</frameset>\n"
-                + "</html>");
-    }
-
-    private void deliverTree() throws IOException {
-        int expandLevel = 4;
-        String query = request.getParameter("expand");
-        if (query != null) {
-            expandLevel = Integer.parseInt(query);
-        }
-
-        n = 1;
-        deliverMenu(1);
-        response.sendString("<div class=\"directory\">\n"
-                + "<div style=\"display: block;\">\n");
-        printTopicsTree(chmFile.getTopicsTree(), 0, expandLevel);
-        response.sendString("</div>\n</div>\n</div>\n\n");
-        chmFile.releaseLargeTopicsTree();
-    }
-
-    private void deliverSearch() throws IOException {
-        deliverMenu(2);
-        response.sendString("<p>Type in the word(s) to search for:</p>\n");
-
-        String query = request.getParameter("searchdata");
-        if (query == null) {
-            deliverSearchForm();
-            response.sendLine("</div></div></body></html>");
-            return;
-        }
-
-        deliverSearchForm(query);
-
-        ChmIndexSearcher searcher = chmFile.getIndexSearcher();
-        searcher.search(query, false, false);
-        HashMap<String, String> results = searcher.getResults();
-
-        if (results == null) {
-            if (searcher.notSearchable) {
-                response.sendString("<p>This CHM file doesn't support full-text search.</p>");
-            } else {
-                response.sendString("<p>No match found for " + query + ".</p>");
-            }
-        } else {
-            for (Map.Entry<String, String> entry : results.entrySet()) {
-                String url = entry.getKey();
-                String topic = entry.getValue();
-                response.sendString("<p>"
-                        + "<a class=\"el\" href=\"" + url + "\""
-                        + "   target=\"basefrm\">" + topic
-                        + "</a>" + "</p>");
-            }
-        }
-        response.sendString("</div></div></body></html>");
-    }
-
-    private void deliverSearch2() throws IOException {
-        deliverMenu(3);
-        response.sendString("<p>Type in the word(s) to search for:</p>\n");
-
-        String query = request.getParameter("searchdata");
-        if (query == null) {
-            deliverSearchForm();
-            response.sendLine("</div></body></html>");
-            return;
-        }
-
-        deliverSearchForm(query);
-
-        try {
-            ChmSearchEnumerator enumerator = new ChmSearchEnumerator(chmFile, query);
-            chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, enumerator);
-            ArrayList<String> results = enumerator.getResults();
-            if (results.size() == 0) {
-                response.sendLine("<p>No match found for " + query
-                        + ".</p>");
-                return;
-            }
-
-            int i = 0;
-            for (String url : results) {
-                i++;
-                String title = chmFile.getTitleOfObject(url);
-                response.sendLine("<p><a class=\"el\" " + " "
-                        + " href=\"" + url + "\" "
-                        + " target=\"basefrm\">[" + i + "]" + title
-                        + "</a></p>");
-            }
-        } catch (Exception e) {
-            // System.err.println(e);
-            e.printStackTrace();
-        }
-        response.sendLine("</div></div></body></html>");
-    }
-
-    private void deliverMenu(int selected) {
-        response.sendHeader("text/html");
-        response.sendString("<html>\n"
-                + "<head>\n"
-                + "<meta http-equiv=\"Content-Type\" "
-                + " content=\"text/html; charset=" + codec + "\">\n"
-                + "<title>Search</title>\n"
-                + "<link rel=\"STYLESHEET\" type=\"text/css\" href=\"@tree.css\"/>\n"
-                + "<script type=\"text/javascript\" src=\"@search.js\"></script>\n"
-                + "<script type=\"text/javascript\" src=\"@tree.js\"></script>\n"
-                + "</head>\n"
-                + "<body>\n"
-                + "<div class=\"menu\">\n"
-                + "<p>\n"
-                + "<a href=\"@tree.html\""
-                + ((selected == 1) ? " class=\"active\"" : "")
-                + ">"
-                + "Topics"
-                + "<a/>|"
-                + "<a href=\"@search.html\""
-                + ((selected == 2) ? " class=\"active\"" : "")
-                + ">"
-                + "Search"
-                + "<a/>|"
-                + "<a href=\"@search2.html\""
-                + ((selected == 3) ? " class=\"active\"" : "")
-                + ">"
-                + "Search(slow)"
-                + "<a/>|\n"
-                + "<a href=\"/\" target=\"basefrm\">Direcroty Listing</a>\n"
-                + "</p>\n"
-                + "</div>\n"
-                + "<div class=\"side_content\">\n");
-    }
-
-    private void deliverSearchForm() {
-        response.sendLine("<form name=\"searchform\">\n"
-                + "<table width=\"95%\">\n"
-                + "  <tr>\n"
-                + "    <td>\n"
-                + "      <input type=\"text\" name=\"searchdata\" "
-                + "        id=\"searchdata\" "
-                + "        style=\"width:100%\">"
-                + "    </td>\n"
-                + "    <td nowrap width=\"50\">\n"
-                + "      <input type=\"submit\" name=\"searchbutton\" "
-                + "           value=\"Search\" style=\"width:100%\">\n"
-                + "    </td>\n" + "  </tr>\n"
-                + "</table>\n" + "</form>");
-    }
-
-    private void deliverSearchForm(String query) {
-        if (query == null) {
-            deliverSearchForm();
-        }
-
-        response.sendLine("<form name=\"searchform\">\n"
-                + "<table width=\"95%\">\n"
-                + "  <tr>\n"
-                + "    <td>\n"
-                + "      <input type=\"text\" name=\"searchdata\" "
-                + "        id=\"searchdata\" "
-                + "        value=\"" + query + "\""
-                + "        style=\"width:100%\">"
-                + "    </td>\n"
-                + "    <td>\n"
-                + "      <input type=\"submit\" name=\"searchbutton\" "
-                + "           value=\"Search\" style=\"width:100%\">\n"
-                + "    </td>\n"
-                + "  </tr>\n"
-                + "  <tr>\n"
-                + "    <td>\n"
-                + "      <input type=button value=\"Remove Highlight\" "
-                + "             onclick=\"unhighlight()\"/>\n"
-                + "    </td>\n"
-                + "    <td>\n"
-                + "      <input type=button value=Highlight "
-                + "             onclick=\"findIt()\">\n"
-                + "    </td>\n"
-                + "  </tr>\n"
-                + "</table>\n"
-                + "</form>");
-    }
-
-    private void printTopicsTree(ChmTopicsTree tree, int level,
-            int expandLevel) {
-        if (tree == null) {
-            return;
-        }
-
-        String title = tree.title.length() > 0 ? tree.title : "untitled";
-
-        response.sendLine("<p>");
-
-        for (int i = 0; i < level - 1; i++) {
-            response.sendLine("<img src=\"@ftv2blank.png\" "
-                    + " title=\"&nbsp;\" width=16 height=22 />");
-        }
-
-        if (level == 0) { // top level
-            for (ChmTopicsTree child : tree.children) {
-                printTopicsTree(child, level + 1, expandLevel);
-            }
-            response.sendString("</p>\n");
-        } else if (!tree.children.isEmpty()) {
-            if (level >= expandLevel) {
-                response.sendLine("<a href=\"@tree.html?expand="
-                        + (expandLevel + 1) + "\">"
-                        + "<img src=@ftv2folderclosed.png "
-                        + " title=\"Click to expand\" border=0></a> "
-                        + "<a class=el href=\"" + tree.path + "\" "
-                        + "   target=basefrm>" + title + "</a>"
-                        + "</p>");
-                return;
-            }
-
-            response.sendLine("<img src=\"@ftv2folderclosed.png\" "
-                    + " title=\"" + title + "\" "
-                    + " width=24 height=22 "
-                    + " onclick=\"toggleFolder(\'folder" + n
-                    + "\', this)\"/>" + "<a class=\"el\" href=\""
-                    + tree.path + "\" " + " target=\"basefrm\">"
-                    + title + "" + "</a>" + "</p>\n");
-            response.sendLine("<div id=\"folder" + n + "\">");
-
-            n++; // n is used to identify folders (topics with sub-topics)
-
-            for (ChmTopicsTree child : tree.children) {
-                printTopicsTree(child, level + 1, expandLevel);
-            }
-            response.sendLine("</div>");
-        } else { // leaf node
-            if (tree.path.length() == 0 && title.equalsIgnoreCase("untitled")) {
-                return;
-            }
-            response.sendLine("<img src=\"@ftv2doc.png\" "
-                    + "   title=\"" + title + "\" "
-                    + "   width=24 height=22 />"
-                    + "<a class=\"el\" href=\"" + tree.path + "\" "
-                    + "   target=\"basefrm\">" + title + "</a>"
-                    + "</p>");
-        }
-    }
 }
-
-// FIXME: remove old pages
 
 class DirChmEnumerator implements ChmEnumerator {
 
@@ -814,7 +519,7 @@ class FilesTreeBuilder implements ChmEnumerator {
         files.add(ui);
     }
 
-    public ChmTopicsTree getFilesTree() {
+    public ChmTopicsTree getFilesTree(String homeFile) {
         ChmTopicsTree root = new ChmTopicsTree();
         root.path = "/";
         ChmTopicsTree currentDirNode = root;
@@ -856,7 +561,8 @@ class FilesTreeBuilder implements ChmEnumerator {
             currentDirNode.children.add(node);
 
             if (path.equals("/")) {
-                node.title = "/";
+                node.title = "Main Page";
+                node.path = homeFile;
                 continue;
             } else if (path.endsWith("/")) {
                 currentDirNode = node;
