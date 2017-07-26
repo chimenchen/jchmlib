@@ -339,7 +339,11 @@ public class ChmFile {
             home_file = "";
         }
         if (home_file.equals("/")) {
-            if (resolveObject("/index.html") != null) {
+            if (resolveObject("/cover.html") != null) {
+                home_file = "/cover.html";
+            } else if (resolveObject("/cover.htm") != null) {
+                home_file = "/cover.htm";
+            } else if (resolveObject("/index.html") != null) {
                 home_file = "/index.html";
             } else if (resolveObject("/index.htm") != null) {
                 home_file = "/index.htm";
@@ -606,9 +610,11 @@ public class ChmFile {
         for (ChmUnitInfo ui : dirMap.values()) {
             //check if we should start
             if (!it_has_begun) {
-                if (ui.length == 0 && ui.path.startsWith(prefix)) {
+                if (ui.path.startsWith(prefix)) {
                     it_has_begun = true;
-                    continue;
+                    if (ui.path.equals(prefix)) {
+                        continue;
+                    }
                 } else {
                     continue;
                 }
@@ -622,6 +628,15 @@ public class ChmFile {
             if (lastPath != null && ui.path.startsWith(lastPath)) {
                 continue;
             }
+
+            String title = ui.path.substring(prefix.length());
+            int index = title.indexOf("/");
+            if (index > 0 && index < title.length() - 1) {
+                // not a direct child dir/file under prefix
+                // create a fake ui for the direct child dir
+                ui = new ChmUnitInfo(ui.path.substring(0, prefix.length() + index + 1));
+            }
+
             lastPath = ui.path;
 
             if (unitTypeMatched(ui, type_bits, filter_bits)) {

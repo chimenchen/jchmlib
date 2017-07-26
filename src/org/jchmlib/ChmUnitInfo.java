@@ -29,6 +29,13 @@ public class ChmUnitInfo {
     int flags;
     String path;
 
+    ChmUnitInfo(String path) {
+        this.path = path;
+        length = 0;
+        space = 0;
+        flags = ChmFile.CHM_ENUMERATE_DIRS | ChmFile.CHM_ENUMERATE_NORMAL;
+    }
+
     public ChmUnitInfo(ByteBuffer bb) throws IOException {
         try {
             // parse str len

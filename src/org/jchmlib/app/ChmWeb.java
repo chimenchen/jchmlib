@@ -243,6 +243,9 @@ class ClientHandler extends Thread {
                 requestedFile = requestedFile.substring("/chmweb/".length());
                 deliverSpecial();
             } else if (requestedFile.endsWith("/")) {// this is a directory
+                if (requestedFile.equals("/nonchmweb/")) {
+                    requestedFile = "/";
+                }
                 deliverDir();
             } else { // this is a file
                 deliverFile();
@@ -257,38 +260,44 @@ class ClientHandler extends Thread {
         }
     }
 
-    // FIXME: rewrite this.
     private void deliverDir() {
         response.sendHeader("text/html");
         response.sendString("<html>\n" +
                 "<head>\n" +
-                "<meta http-equiv=\"Content-Type\" content=\"text/html; " +
-                " charset=" + codec + "\">\n" +
-                "<title>" + chmFile.title + "</title>" +
+                "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=" + codec + "\">\n"
+                +
+                "<title>" + requestedFile + "</title>" +
+                "<link rel=\"stylesheet\" href=\"/chmweb/css/chmweb.css\">" +
                 "</head>" +
                 "<body>\n" +
-                "<table border=0 cellspacing=0 cellpadding=0 width=100%>\n" +
-                "<tr><td align=right nowrap>" +
-                "</td></tr>\n" +
-                "<tr><td align=left>" +
-                "<h2><u>CHM Contents:</u></h2>" +
-                "</td></tr>\n" +
+                "<h1>" + requestedFile + "</h1>" +
+                "<table class=\"filelist\">\n" +
+                "<thead>\n" +
                 "<tr>\n" +
-                "<table width=\"100%\">\n" +
-                "<tr>\n" +
-                "  <td align=right><b>Size: &nbsp&nbsp<b>\n" +
-                "   <br><hr>\n" +
-                "  </td>\n" +
-                "  <td><b>File:<b><br><hr></td>\n" +
+                "  <td>File</td>\n" +
+                "  <td class=\"filesize\">Size</td>\n" +
                 "</tr>\n" +
-                "<tt>\n");
+                "<thead>\n" +
+                "<tbody>\n");
+
+        // /apple/ l=7, 0-6, 0, 0-1
+        // /apple/banana/, l=14, 0-13, 6, 0-7
+        // / l=1, 0-0
+        int index = requestedFile.substring(0, requestedFile.length() - 1).lastIndexOf("/");
+        if (index >= 0) {
+            String parentDir = requestedFile.substring(0, index + 1);
+            if (parentDir.equals("/")) {
+                parentDir = "/nonchmweb/";
+            }
+            response.sendLine(String.format("<td><a href=\"%s\">%s</a></td>", parentDir, ".."));
+            response.sendLine("<td></td>");
+        }
 
         chmFile.enumerateDir(requestedFile,
                 ChmFile.CHM_ENUMERATE_USER,
-                new DirChmEnumerator(response.getWriter()));
+                new DirChmEnumerator(response.getWriter(), requestedFile.length()));
 
-        response.sendString("</tt>\n" +
-                "</tr>\n" +
+        response.sendString("</tbody>\n" +
                 "</table>\n" +
                 "</body>\n" +
                 "</html>\n");
@@ -492,17 +501,24 @@ class ClientHandler extends Thread {
 class DirChmEnumerator implements ChmEnumerator {
 
     private final PrintStream out;
+    private final int prefixLength;
 
-    public DirChmEnumerator(PrintStream out) {
+    public DirChmEnumerator(PrintStream out, int prefixLength) {
         this.out = out;
+        this.prefixLength = prefixLength;
     }
 
     public void enumerate(ChmUnitInfo ui) {
-        out.println("<tr>\n");
-        out.println("\t<td align=right>" + ui.getLength()
-                + " &nbsp&nbsp</td>");
-        out.println("\t<td><a href=\"" + ui.getPath() + "\">" + ui.getPath()
-                + "</a></td>\n");
+        out.println("<tr>");
+        if (ui.getLength() > 0) {
+            out.println(String.format("<td class=\"file\"><a href=\"%s\">%s</a></td>",
+                    ui.getPath(), ui.getPath().substring(prefixLength)));
+            out.println(String.format("<td class=\"filesize\">%d</td>", ui.getLength()));
+        } else {
+            out.println(String.format("<td class=\"folder\"><a href=\"%s\">%s</a></td>",
+                    ui.getPath(), ui.getPath().substring(prefixLength)));
+            out.println("<td></td>");
+        }
         out.println("</tr>");
     }
 }

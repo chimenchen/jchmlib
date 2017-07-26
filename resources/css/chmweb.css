@@ -134,3 +134,36 @@ li.folder.on > ul {
 #search-results li > a {
   margin-left: 0;
 }
+
+h1 {
+  border-bottom: 1px solid #c0c0c0;
+  margin-bottom: 10px;
+  padding: 20px;
+  white-space: nowrap;
+}
+
+table.filelist {
+  margin: 20px;
+  width: 90%;
+
+}
+
+table.filelist tbody tr:nth-child(odd) td {
+  background-color: #eee;
+}
+
+td.filesize {
+  text-align: right;
+  padding-left: 10px;
+  padding-right: 20px;
+}
+
+td.file {
+  background: url(../img/doc.png) 0px -2px no-repeat;
+  padding-left: 20px;
+}
+
+td.folder {
+  background: url(../img/folderclosed.png) 0px -2px no-repeat;
+  padding-left: 20px;
+}
