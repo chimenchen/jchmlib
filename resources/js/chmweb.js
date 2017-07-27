@@ -1,23 +1,58 @@
-function openTab(evt, tabName) {
-  let i, tabcontent, tablinks;
+Array.prototype.clean = function () {
+  for (var i = 0; i < this.length; i++) {
+    if (this[i] == undefined) {
+      this.splice(i, 1);
+      i--;
+    }
+  }
+  return this;
+};
 
-  tabcontent = document.getElementsByClassName("tabcontent");
-  for (i = 0; i < tabcontent.length; i++) {
+if (!Function.prototype.bind) {
+  Function.prototype.bind = function (oThis) {
+    if (typeof this !== "function") {
+      // closest thing possible to the ECMAScript 5
+      // internal IsCallable function
+      throw new TypeError("Function.prototype.bind - what is trying to be bound is not callable");
+    }
+
+    var aArgs = Array.prototype.slice.call(arguments, 1),
+        fToBind = this,
+        fNOP = function () {},
+        fBound = function () {
+          return fToBind.apply(this instanceof fNOP && oThis
+                  ? this
+                  : oThis,
+              aArgs.concat(Array.prototype.slice.call(arguments)));
+        };
+
+    fNOP.prototype = this.prototype;
+    fBound.prototype = new fNOP();
+
+    return fBound;
+  };
+}
+
+var openTab = function (event, tabName) {
+  var tabcontent = document.querySelectorAll(".tabcontent");
+  for (var i = 0; i < tabcontent.length; i++) {
     tabcontent[i].className = tabcontent[i].className.replace(" active", "");
     if (tabcontent[i].id === tabName) {
       tabcontent[i].className += " active";
     }
   }
 
-  tablinks = document.getElementsByClassName("tablinks");
-  for (i = 0; i < tablinks.length; i++) {
+  var tablinks = document.querySelectorAll(".tablinks");
+  for (var i = 0; i < tablinks.length; i++) {
     tablinks[i].className = tablinks[i].className.replace(" active", "");
   }
-  evt.currentTarget.className += " active";
-}
+  var target = (event.currentTarget) ? event.currentTarget : event.srcElement;
+  target.className += " active";
+};
 
-const toggleFolder = function (node, e) {
-  const folder = e.target;
+var toggleFolder = function (node, evt) {
+  evt = evt || window.event;
+  var folder = evt.target || evt.srcElement;
   if (folder !== node) {
     return;
   }
@@ -28,36 +63,37 @@ const toggleFolder = function (node, e) {
   }
 };
 
-function registerFolderToggle() {
-  const folders = document.getElementsByClassName("folder");
-  for (let i = 0; i < folders.length; i++) {
-    const folder = folders[i];
+var registerFolderToggle = function (root) {
+  var folders = root.querySelectorAll(".folder");
+  for (var i = 0; i < folders.length; i++) {
+    var folder = folders[i];
     folder.onclick = toggleFolder.bind(null, folder);
   }
-}
+};
 
-function addTopicNodes(ul, topics) {
+var addTopicNodes = function (ul, topics) {
   ul.innerHTML = "";
-  for (let i = 0; i < topics.length; i++) {
-    const item = topics[i];
-    const li = document.createElement("li");
-    const a = document.createElement("a");
+  topics.clean();
+  for (var i = 0; i < topics.length; i++) {
+    var item = topics[i];
+    var li = document.createElement("li");
+    var a = document.createElement("a");
     a.href = item[0];
     a.innerHTML = item[1];
     a.target = "basefrm";
     li.appendChild(a);
     if (item.length >= 3) {
       li.className = "folder";
-      const child_ul = document.createElement("ul");
+      var child_ul = document.createElement("ul");
       addTopicNodes(child_ul, item[2]);
       li.appendChild(child_ul);
     }
     ul.appendChild(li);
   }
-}
+};
 
-function loadTopicsTree() {
-  const xmlhttp = new XMLHttpRequest();
+var loadTopicsTree = function () {
+  var xmlhttp = new XMLHttpRequest();
   xmlhttp.open("GET", "topics.json", true);
   xmlhttp.onreadystatechange = function () {
     if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
@@ -65,23 +101,23 @@ function loadTopicsTree() {
     }
   };
   xmlhttp.send(null);
-}
+};
 
-function onTopicsTreeReceived(text) {
+var onTopicsTreeReceived = function (text) {
   if (text) {
     // console.debug(text);
-    const json = eval("(" + text + ")");
+    var json = eval("(" + text + ")");
     if (json) {
-      const topics_tree = json;
-      const ulRoot = document.getElementById("topics-tree");
+      var topics_tree = json;
+      var ulRoot = document.getElementById("topics-tree");
       addTopicNodes(ulRoot, topics_tree);
-      registerFolderToggle();
+      registerFolderToggle(ulRoot);
       return;
     }
   }
 
-  const tablinkTopics = document.getElementById("tablink-topics");
-  const tabcontentTopics = document.getElementById("Topics");
+  var tablinkTopics = document.getElementById("tablink-topics");
+  var tabcontentTopics = document.getElementById("Topics");
   if (tablinkTopics) {
     tablinkTopics.className = tablinkTopics.className.replace(" active", "");
     tablinkTopics.className += " hidden";
@@ -92,18 +128,18 @@ function onTopicsTreeReceived(text) {
     tabcontentTopics.className += " hidden";
   }
 
-  const tablinkFiles = document.getElementById("tablink-files");
-  const tabcontentFiles = document.getElementById("Files");
+  var tablinkFiles = document.getElementById("tablink-files");
+  var tabcontentFiles = document.getElementById("Files");
   if (tablinkFiles) {
     tablinkFiles.className += " active";
   }
   if (tabcontentFiles) {
     tabcontentFiles.className += " active";
   }
-}
+};
 
-function loadFiles() {
-  const xmlhttp = new XMLHttpRequest();
+var loadFiles = function () {
+  var xmlhttp = new XMLHttpRequest();
   xmlhttp.open("GET", "files.json", true);
   xmlhttp.onreadystatechange = function () {
     if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
@@ -111,26 +147,24 @@ function loadFiles() {
     }
   };
   xmlhttp.send(null);
-}
+};
 
-function onFilesTreeReceived(text) {
+var onFilesTreeReceived = function (text) {
   if (text) {
     // console.debug(text);
-    const json = eval("(" + text + ")");
+    var json = eval("(" + text + ")");
     if (json) {
-      const files = json;
-      const ulRoot = document.getElementById("files-tree");
+      var files = json;
+      var ulRoot = document.getElementById("files-tree");
       addTopicNodes(ulRoot, files);
-      registerFolderToggle();
-
+      registerFolderToggle(ulRoot);
     }
   }
+};
 
-}
-
-const searchInCHM = function (query, use_regex) {
-  const xmlhttp = new XMLHttpRequest();
-  let url = "search.json?q=" + query;
+var searchInCHM = function (query, use_regex) {
+  var xmlhttp = new XMLHttpRequest();
+  var url = "search.json?q=" + query;
   if (use_regex) {
     url += "&regex=1";
   }
@@ -143,16 +177,16 @@ const searchInCHM = function (query, use_regex) {
   xmlhttp.send(null);
 };
 
-function onSearchResultReceived(text) {
-  let search_results;
-  let no_result_found;
+var onSearchResultReceived = function (text) {
+  var search_results;
+  var no_result_found;
   if (!text) {
     return;
   }
 
-  console.debug(text);
+  // console.debug(text);
 
-  const result = eval("(" + text + ")");
+  var result = eval("(" + text + ")");
   /** @namespace result.ok **/
   if (!result.ok) {
     search_results = document.getElementById("search-results");
@@ -170,15 +204,16 @@ function onSearchResultReceived(text) {
     }
   } else {
     /** @namespace result.results **/
-    const items = result.results;
+    var items = result.results;
+    items.clean();
     search_results = document.getElementById("search-results");
     if (search_results) {
-      const ol = document.getElementById("search-result-list");
+      var ol = document.getElementById("search-result-list");
       ol.innerHTML = "";
-      for (let i = 0; i < items.length; i++) {
-        const r = items[i];
-        const li = document.createElement("li");
-        const a = document.createElement("a");
+      for (var i = 0; i < items.length; i++) {
+        var r = items[i];
+        var li = document.createElement("li");
+        var a = document.createElement("a");
         a.href = r[0];
         a.innerHTML = r[1];
         a.target = "basefrm";
@@ -189,7 +224,7 @@ function onSearchResultReceived(text) {
       search_results.className = search_results.className.replace(
           " hidden", "");
 
-      const highlight_toggle = document.getElementById("toggleHighlight");
+      var highlight_toggle = document.getElementById("toggleHighlight");
       if (highlight_toggle) {
         highlight_toggle.setAttribute("data-toggle", "off");
       }
@@ -202,21 +237,22 @@ function onSearchResultReceived(text) {
       }
     }
   }
-}
-const onSearch = function () {
-  let queryNode = document.getElementById("query");
+};
+
+var onSearch = function () {
+  var queryNode = document.getElementById("query");
   if (!queryNode || !queryNode.value) {
     return;
   }
-  const query = queryNode.value;
+  var query = queryNode.value;
   // console.debug("query: " + query);
-  const use_regex = document.getElementById("regex").checked;
+  var use_regex = document.getElementById("regex").checked;
   // console.debug("use_regex: " + use_regex);
 
   searchInCHM(query, use_regex);
 };
 
-const onSearchEnter = function (e) {
+var onSearchEnter = function (e) {
   if (e.keyCode === 13) {
     onSearch();
     return false;
@@ -224,17 +260,17 @@ const onSearchEnter = function (e) {
   return true;
 };
 
-function unhighlight() {
+var unhighlight = function () {
   /** @namespace top.basefrm **/
   if (top.basefrm) {
     unhighlightNode(top.basefrm.document.getElementsByTagName('body')[0]);
   }
-}
+};
 
-function unhighlightNode(node) {
+var unhighlightNode = function (node) {
   // Iterate into this nodes childNodes
   if (node.hasChildNodes) {
-    let hi_cn;
+    var hi_cn;
     for (hi_cn = 0; hi_cn < node.childNodes.length; hi_cn++) {
       unhighlightNode(node.childNodes[hi_cn]);
     }
@@ -242,22 +278,22 @@ function unhighlightNode(node) {
 
   // And do this node itself
   if (node.nodeType === 3) { // text node
-    const pn = node.parentNode;
+    var pn = node.parentNode;
     if (pn.className === "searchword") {
-      const prevSib = pn.previousSibling;
-      const nextSib = pn.nextSibling;
+      var prevSib = pn.previousSibling;
+      var nextSib = pn.nextSibling;
       nextSib.nodeValue = prevSib.nodeValue + node.nodeValue
           + nextSib.nodeValue;
       prevSib.nodeValue = '';
       node.nodeValue = '';
     }
   }
-}
+};
 
-function highlightWord(doc, node, word) {
+var highlightWord = function (doc, node, word) {
   // Iterate into this nodes childNodes
   if (node.hasChildNodes) {
-    let hi_cn;
+    var hi_cn;
     for (hi_cn = 0; hi_cn < node.childNodes.length; hi_cn++) {
       highlightWord(doc, node.childNodes[hi_cn], word);
     }
@@ -265,20 +301,20 @@ function highlightWord(doc, node, word) {
 
   // And do this node itself
   if (node.nodeType === 3) { // text node
-    const tempNodeVal = node.nodeValue.toLowerCase();
-    const tempWordVal = word.toLowerCase();
+    var tempNodeVal = node.nodeValue.toLowerCase();
+    var tempWordVal = word.toLowerCase();
     if (tempNodeVal.indexOf(tempWordVal) !== -1) {
-      const pn = node.parentNode;
+      var pn = node.parentNode;
       if (pn.className !== "searchword") {
         // word has not already been highlighted!
-        const nv = node.nodeValue;
-        const ni = tempNodeVal.indexOf(tempWordVal);
+        var nv = node.nodeValue;
+        var ni = tempNodeVal.indexOf(tempWordVal);
         // Create a load of replacement nodes
-        const before = doc.createTextNode(nv.substr(0, ni));
-        const docWordVal = nv.substr(ni, word.length);
-        const after = doc.createTextNode(nv.substr(ni + word.length));
-        const hiwordtext = doc.createTextNode(docWordVal);
-        const hiword = doc.createElement("span");
+        var before = doc.createTextNode(nv.substr(0, ni));
+        var docWordVal = nv.substr(ni, word.length);
+        var after = doc.createTextNode(nv.substr(ni + word.length));
+        var hiwordtext = doc.createTextNode(docWordVal);
+        var hiword = doc.createElement("span");
         hiword.className = "searchword";
         hiword.style.background = "yellow";
         hiword.appendChild(hiwordtext);
@@ -289,9 +325,9 @@ function highlightWord(doc, node, word) {
       }
     }
   }
-}
+};
 
-function localSearchHighlight(doc, searchStr) {
+var localSearchHighlight = function (doc, searchStr) {
   if (!doc.createElement) {
     return;
   }
@@ -304,17 +340,17 @@ function localSearchHighlight(doc, searchStr) {
   if (searchStr === '') {
     return;
   }
-  const phrases = searchStr.replace(/\+/g, ' ').split(/"/);
+  var phrases = searchStr.replace(/\+/g, ' ').split(/"/);
   // Use this next line if you would like to force the script to always
   // search for phrases. See below as well!!!
   //phrases = new Array(); phrases[0] = ''; phrases[1] = searchStr.replace(/\+/g,' ');
-  for (let p = 0; p < phrases.length; p++) {
+  for (var p = 0; p < phrases.length; p++) {
     phrases[p] = window.unescape(phrases[p]).replace(/^\s+|\s+$/g, "");
     if (phrases[p] === '') {
       continue;
     }
 
-    let words;
+    var words;
     if (p % 2 === 0) {
       words = phrases[p].replace(
           /([+,()]|%(29|28)|\W+(AND|OR)\W+)/g, ' ').split(/\s+/);
@@ -322,21 +358,21 @@ function localSearchHighlight(doc, searchStr) {
       words = new Array(1);
       words[0] = phrases[p];
     }
-    for (let w = 0; w < words.length; w++) {
+    for (var w = 0; w < words.length; w++) {
       if (words[w] === '') {
         continue;
       }
       highlightWord(doc, doc.getElementsByTagName("body")[0], words[w]);
     }
   }
-}
+};
 
-const toggleHighlight = function () {
-  let highlight_toggle = document.getElementById("toggle-highlight");
+var toggleHighlight = function () {
+  var highlight_toggle = document.getElementById("toggle-highlight");
   if (!highlight_toggle) {
     return;
   }
-  const status = highlight_toggle.getAttribute("data-toggle");
+  var status = highlight_toggle.getAttribute("data-toggle");
 
   if (status === "off") {
     highlight_toggle.setAttribute("data-toggle", "on");
@@ -344,11 +380,11 @@ const toggleHighlight = function () {
       return;
     }
 
-    let queryNode = document.getElementById("query");
+    var queryNode = document.getElementById("query");
     if (!queryNode || !queryNode.value) {
       return;
     }
-    const query = queryNode.value;
+    var query = queryNode.value;
 
     localSearchHighlight(top.basefrm.document, query);
   } else {

@@ -39,7 +39,7 @@ compileJava {
     options.forkOptions.executable = "javac"
 }
 
-def mainClassName = "org.jchmlib.app.ChmWebApp"
+def appMainClass = "org.jchmlib.app.ChmWebApp"
 
 task appJar(type: Jar) {
     baseName = "ChmWeb"
@@ -48,7 +48,7 @@ task appJar(type: Jar) {
         attributes(
                 "Implementation-Title": baseName,
                 "Implementation-Version": version,
-                "Main-Class": mainClassName)
+                "Main-Class": appMainClass)
     }
 
     from("LICENSE")
@@ -91,7 +91,7 @@ task deb(dependsOn: appJar) {
             args "-deploy",
                  "-title", appName,
                  "-name", appName,
-                 "-appclass", mainClassName,
+                 "-appclass", appMainClass,
                  "-native", "deb",
                  "-outdir", deployDir,
                  "-outfile", appName,
@@ -118,7 +118,7 @@ task dmg(dependsOn: appJar) {
         args "-deploy",
              "-title", appName,
              "-name", appName,
-             "-appclass", mainClassName,
+             "-appclass", appMainClass,
              "-native", "dmg",
              "-outdir", deployDir,
              "-outfile", appName,
@@ -129,11 +129,13 @@ task dmg(dependsOn: appJar) {
 }
 
 launch4j {
-  mainClassName = mainClassName
+  mainClassName = appMainClass
   icon = "${project.rootDir}/package/windows/ChmWeb.ico"
   jar = appJar.outputs.files[0].path
   outfile = appJar.baseName + ".exe"
   productName = appJar.baseName
+  version = "0.2"
   fileDescription = "A web server for viewing CHM files in web browser"
+  description = "A web server for viewing CHM files in web browser"
 }
 

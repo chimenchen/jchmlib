@@ -10,22 +10,25 @@ div.tab {
   height: 30px;
 }
 
-div.tab button {
+div.tab .button {
+  display: inline;
   background-color: inherit;
   float: left;
   border: none;
   outline: none;
   cursor: pointer;
-  padding: 5px 10px;
+  padding: 0 10px;
   transition: 0.3s;
   height: 30px;
+  line-height: 30px;
+  font-size: small;
 }
 
-div.tab button:hover {
+div.tab .button:hover {
   background-color: #ddd;
 }
 
-div.tab button.active {
+div.tab .button.active {
   background-color: #ccc;
 }
 
@@ -92,6 +95,7 @@ li.folder.on > ul {
 
 #search-form input[name="query"] {
   height: 25px;
+  line-height: 25px;
   border: solid 1px #ccc;
   border-radius: 10px;
   padding: 0 25px 0 10px;
