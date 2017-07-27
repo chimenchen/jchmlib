@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=ChmWeb
+Comment=A web server for viewing CHM (MS-Help) files
+Exec=/opt/ChmWeb/ChmWeb %f
+TryExec=/opt/ChmWeb/ChmWeb
+Icon=/opt/ChmWeb/ChmWeb.png
+Terminal=false
+Type=Application
+Categories=Office;Viewer;Utility;java;
+MimeType=application/chm

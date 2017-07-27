@@ -1,5 +1,17 @@
+buildscript {
+    repositories {
+        maven{ url 'http://maven.aliyun.com/nexus/content/groups/public/'}
+    }
+}
+
 plugins {
     id "edu.sc.seis.launch4j" version "2.3.0"
+}
+
+allprojects {
+    repositories {
+        maven{ url 'http://maven.aliyun.com/nexus/content/groups/public/'}
+    }
 }
 
 apply plugin: "java"
@@ -39,6 +51,7 @@ task appJar(type: Jar) {
                 "Main-Class": mainClassName)
     }
 
+    from("LICENSE")
     from(sourceSets.main.output)
     from(sourceSets.app.resources)
 }
@@ -52,6 +65,7 @@ task libJar(type: Jar) {
                 "Implementation-Version": version)
     }
 
+    from("LICENSE")
     from(sourceSets.main.output) {
         exclude "org/jchmlib/app/**"
     }
@@ -63,6 +77,33 @@ jar {
 }
 
 // $(/usr/libexec/java_home)/bin/javapackager -deploy -native dmg -srcfiles build/libs/ChmWeb-0.2.jar -appclass org.jchmlib.app.ChmWebApp -name ChmWeb -outdir build/deploy -outfile ChmWeb -v -BappVersion=0.2
+
+task deb(dependsOn: appJar) {
+    def appName = appJar.baseName
+    def jarFile = appJar.outputs.files[0].path
+    def deployDir = "${buildDir}/deploy"
+
+    file(deployDir).mkdirs()
+
+    doLast {
+        exec {
+            executable System.getProperty("java.home")+"/../bin/javapackager"
+            args "-deploy",
+                 "-title", appName,
+                 "-name", appName,
+                 "-appclass", mainClassName,
+                 "-native", "deb",
+                 "-outdir", deployDir,
+                 "-outfile", appName,
+                 "-srcfiles", jarFile,
+                 "-BappVersion=$version",
+                 "-Bcopyright=Copyright © 2017 Chimen Chen. All rights reserved.",
+                 "-BlicenseType=Apache License 2.0",
+                 "-srcfiles", "LICENSE",
+                 "-BlicenseFile=LICENSE",
+                 "-verbose"
+    }}
+}
 
 task dmg(dependsOn: appJar) {
     // NOTE: need to change Info.plist if version or appName is changed.
