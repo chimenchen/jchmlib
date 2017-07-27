@@ -30,8 +30,6 @@ import org.jchmlib.util.ByteBufferHelper;
  */
 public class ChmSearchEnumerator implements ChmEnumerator {
 
-    public static final String REGEX = "\"[^\"]*\"|[^\\s]+";
-
     private ChmFile chmFile;
     private Collection<String> keywords;
     private ArrayList<String> results;

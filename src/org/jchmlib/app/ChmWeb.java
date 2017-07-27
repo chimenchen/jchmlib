@@ -9,7 +9,6 @@ package org.jchmlib.app;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintStream;
 import java.io.RandomAccessFile;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -36,12 +35,11 @@ import org.jchmlib.app.net.HttpResponse;
 public class ChmWeb extends Thread {
 
     private static final Logger LOG = Logger.getLogger(ChmWeb.class.getName());
-
+    private final boolean isRunningFromJar;
     private ServerSocket listen_socket;
     private ChmFile chmFile;
     private String chmFilePath = null;
     private String codec = "UTF8";
-    private boolean isRunningFromJar;
     private String resourcesPath;
 
     public ChmWeb() {
@@ -96,7 +94,7 @@ public class ChmWeb extends Thread {
         return true;
     }
 
-    ServerSocket tryCreateSocket(int defaultPort) {
+    private ServerSocket tryCreateSocket(int defaultPort) {
         if (defaultPort > 0) {
             try {
                 return new ServerSocket(defaultPort);
@@ -192,9 +190,6 @@ class ClientHandler extends Thread {
     private String requestedFile;
     private String resourcesPath;
 
-    /* used in printTopicsTree */
-    private int n;
-
     public ClientHandler(Socket client_socket, ChmFile file, String codec,
             boolean isRunningFromJar, String resourcesPath) {
         client = client_socket;
@@ -204,13 +199,13 @@ class ClientHandler extends Thread {
         this.resourcesPath = resourcesPath;
 
         try {
-            request = new HttpRequest(client.getInputStream(), codec);
+            request = new HttpRequest(client.getInputStream(), this.codec);
             requestedFile = request.getPath();
             if (requestedFile != null && requestedFile.startsWith("/chmweb/")) {
-                codec = "UTF8";
-                request.setEncoding(codec);  // for parsing parameters
+                this.codec = "UTF8";
+                request.setEncoding(this.codec);  // for parsing parameters
             }
-            response = new HttpResponse(client.getOutputStream(), codec);
+            response = new HttpResponse(client.getOutputStream(), this.codec);
         } catch (IOException e) {
             e.printStackTrace();
             try {
@@ -260,6 +255,16 @@ class ClientHandler extends Thread {
         }
     }
 
+    private String fixChmLink(String homeFile) {
+        if (homeFile.equals("/")) {
+            return "/nonchmweb/";
+        } else if (homeFile.startsWith("/chmweb/")) {
+            return "/nonchmweb/" + homeFile.substring("/chmweb/".length());
+        } else {
+            return homeFile;
+        }
+    }
+
     private void deliverDir() {
         response.sendHeader("text/html");
         response.sendString("<html>\n" +
@@ -286,16 +291,27 @@ class ClientHandler extends Thread {
         int index = requestedFile.substring(0, requestedFile.length() - 1).lastIndexOf("/");
         if (index >= 0) {
             String parentDir = requestedFile.substring(0, index + 1);
-            if (parentDir.equals("/")) {
-                parentDir = "/nonchmweb/";
-            }
+            parentDir = fixChmLink(parentDir);
             response.sendLine(String.format("<td><a href=\"%s\">%s</a></td>", parentDir, ".."));
             response.sendLine("<td></td>");
         }
 
-        chmFile.enumerateDir(requestedFile,
-                ChmFile.CHM_ENUMERATE_USER,
-                new DirChmEnumerator(response.getWriter(), requestedFile.length()));
+        DirChmEnumerator enumerator = new DirChmEnumerator();
+        chmFile.enumerateDir(requestedFile, ChmFile.CHM_ENUMERATE_USER, enumerator);
+
+        for (ChmUnitInfo ui : enumerator.files) {
+            response.sendLine("<tr>");
+            if (ui.getLength() > 0) {
+                response.sendLine(String.format("<td class=\"file\"><a href=\"%s\">%s</a></td>",
+                        fixChmLink(ui.getPath()), ui.getPath().substring(requestedFile.length())));
+                response.sendLine(String.format("<td class=\"filesize\">%d</td>", ui.getLength()));
+            } else {
+                response.sendLine(String.format("<td class=\"folder\"><a href=\"%s\">%s</a></td>",
+                        fixChmLink(ui.getPath()), ui.getPath().substring(requestedFile.length())));
+                response.sendLine("<td></td>");
+            }
+            response.sendLine("</tr>");
+        }
 
         response.sendString("</tbody>\n" +
                 "</table>\n" +
@@ -345,6 +361,7 @@ class ClientHandler extends Thread {
 
     private void deliverMain() {
         response.sendHeader("text/html");
+        String homeFile = fixChmLink(chmFile.home_file);
         response.sendLine("<html>\n"
                 + "<head>\n"
                 + "<meta http-equiv=\"Content-Type\" "
@@ -354,18 +371,18 @@ class ClientHandler extends Thread {
                 + "</head>\n"
                 + "<frameset cols=\"200, *\">\n"
                 + "  <frame src=\"/chmweb/sidebar2.html\" name=\"treefrm\">\n"
-                + "  <frame src=\"" + chmFile.home_file + "\" name=\"basefrm\">\n"
+                + "  <frame src=\"" + homeFile + "\" name=\"basefrm\">\n"
                 + "</frameset>\n"
                 + "</html>");
     }
 
-    private void deliverTopicsTree() throws IOException {
+    private void deliverTopicsTree() {
         response.sendHeader("application/json");
-        printTopicsTree2(chmFile.getTopicsTree(), 0);
+        printTopicsTree(chmFile.getTopicsTree(), 0);
         chmFile.releaseLargeTopicsTree();
     }
 
-    private void printTopicsTree2(ChmTopicsTree tree, int level) {
+    private void printTopicsTree(ChmTopicsTree tree, int level) {
         if (tree == null) {
             return;
         }
@@ -376,32 +393,89 @@ class ClientHandler extends Thread {
         if (level == 0) {
             response.sendString("[");
             for (ChmTopicsTree child : tree.children) {
-                printTopicsTree2(child, level + 1);
+                printTopicsTree(child, level + 1);
             }
             response.sendLine("]");
         } else if (!tree.children.isEmpty()) {
             response.sendLine(String.format("['%s', '%s', [", tree.path, title));
             for (ChmTopicsTree child : tree.children) {
-                printTopicsTree2(child, level + 1);
+                printTopicsTree(child, level + 1);
             }
             response.sendLine("],],");
         } else { // leaf node
             if (tree.path.length() == 0 && title.equalsIgnoreCase("untitled")) {
                 return;
             }
-            response.sendLine(String.format("['%s', '%s'],", tree.path, title));
+            String path = fixChmLink(tree.path);
+            response.sendLine(String.format("['%s', '%s'],", path, title));
         }
     }
 
     private void deliverFilesTree() {
         response.sendHeader("application/json");
-        FilesTreeBuilder builder = new FilesTreeBuilder();
-        chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, builder);
-        ChmTopicsTree tree = builder.getFilesTree(chmFile.home_file);
-        printTopicsTree2(tree, 0);
+        DirChmEnumerator enumerator = new DirChmEnumerator();
+        chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, enumerator);
+        ChmTopicsTree tree = buildFilesTree(enumerator.files);
+        printTopicsTree(tree, 0);
     }
 
-    private void deliverUnifiedSearch() throws IOException {
+    private ChmTopicsTree addFileNode(String path, String title, ChmTopicsTree currentDirNode) {
+        ChmTopicsTree node = new ChmTopicsTree();
+        node.path = path;
+        node.title = title;
+        node.parent = currentDirNode;
+        currentDirNode.children.add(node);
+        return node;
+    }
+
+    private ChmTopicsTree buildFilesTree(ArrayList<ChmUnitInfo> files) {
+        ChmTopicsTree root = new ChmTopicsTree();
+        root.path = "/";
+        ChmTopicsTree currentDirNode = root;
+
+        addFileNode(fixChmLink(chmFile.home_file), "Main Page", root);
+        addFileNode(fixChmLink("/"), "Root Directory", root);
+        for (ChmUnitInfo ui : files) {
+            String path = ui.getPath();
+            if (path.equals("/")) {
+                continue;
+            }
+
+            while (currentDirNode != null && !path.startsWith(currentDirNode.path)) {
+                currentDirNode = currentDirNode.parent;
+            }
+            if (currentDirNode == null) {
+                break;
+            }
+
+            String title = path.substring(currentDirNode.path.length());
+            while (true) {
+                if (title.length() == 0) {
+                    break;
+                }
+                int index = title.indexOf("/");
+                if (index <= 0 || index == title.length() - 1) {
+                    break;
+                }
+
+                String dirPart = title.substring(0, index + 1);
+                String leftPart = title.substring(index + 1);
+                currentDirNode = addFileNode(currentDirNode.path + dirPart,
+                        dirPart, currentDirNode);
+
+                title = leftPart;
+            }
+
+            ChmTopicsTree node = addFileNode(path, title, currentDirNode);
+            if (path.endsWith("/")) {
+                currentDirNode = node;
+            }
+        }
+
+        return root;
+    }
+
+    private void deliverUnifiedSearch() {
         String query = request.getParameter("q");
         if (query == null) {
             return;
@@ -424,6 +498,7 @@ class ClientHandler extends Thread {
                 for (Map.Entry<String, String> entry : results.entrySet()) {
                     String url = "/" + entry.getKey();
                     String topic = entry.getValue();
+                    url = fixChmLink(url);
                     url = url.replace("'", "\\'");
                     topic = topic.replace("'", "\\'");
                     response.sendLine(String.format("['%s', '%s'],", url, topic));
@@ -449,6 +524,7 @@ class ClientHandler extends Thread {
             for (String url : results) {
                 String topic = chmFile.getTitleOfObject(url);
                 url = url.replace("'", "\\'");
+                url = fixChmLink(url);
                 topic = topic.replace("'", "\\'");
                 response.sendLine(String.format("['%s', '%s'],", url, topic));
             }
@@ -500,91 +576,13 @@ class ClientHandler extends Thread {
 
 class DirChmEnumerator implements ChmEnumerator {
 
-    private final PrintStream out;
-    private final int prefixLength;
+    final ArrayList<ChmUnitInfo> files;
 
-    public DirChmEnumerator(PrintStream out, int prefixLength) {
-        this.out = out;
-        this.prefixLength = prefixLength;
-    }
-
-    public void enumerate(ChmUnitInfo ui) {
-        out.println("<tr>");
-        if (ui.getLength() > 0) {
-            out.println(String.format("<td class=\"file\"><a href=\"%s\">%s</a></td>",
-                    ui.getPath(), ui.getPath().substring(prefixLength)));
-            out.println(String.format("<td class=\"filesize\">%d</td>", ui.getLength()));
-        } else {
-            out.println(String.format("<td class=\"folder\"><a href=\"%s\">%s</a></td>",
-                    ui.getPath(), ui.getPath().substring(prefixLength)));
-            out.println("<td></td>");
-        }
-        out.println("</tr>");
-    }
-}
-
-class FilesTreeBuilder implements ChmEnumerator {
-
-    ArrayList<ChmUnitInfo> files;
-
-    FilesTreeBuilder() {
+    DirChmEnumerator() {
         files = new ArrayList<>();
     }
 
     public void enumerate(ChmUnitInfo ui) {
         files.add(ui);
-    }
-
-    public ChmTopicsTree getFilesTree(String homeFile) {
-        ChmTopicsTree root = new ChmTopicsTree();
-        root.path = "/";
-        ChmTopicsTree currentDirNode = root;
-        for (ChmUnitInfo ui : files) {
-            String path = ui.getPath();
-            while (currentDirNode != null && !path.startsWith(currentDirNode.path)) {
-                currentDirNode = currentDirNode.parent;
-            }
-            if (currentDirNode == null) {
-                break;
-            }
-
-            String title = path.substring(currentDirNode.path.length());
-            while (true) {
-                if (title.length() == 0) {
-                    break;
-                }
-                int index = title.indexOf("/");
-                if (index <= 0 || index == title.length() - 1) {
-                    break;
-                }
-
-                String dirPart = title.substring(0, index + 1);
-                String leftPart = title.substring(index + 1);
-                ChmTopicsTree node = new ChmTopicsTree();
-                node.path = currentDirNode.path + dirPart;
-                node.title = dirPart;
-                node.parent = currentDirNode;
-                currentDirNode.children.add(node);
-                currentDirNode = node;
-
-                title = leftPart;
-            }
-
-            ChmTopicsTree node = new ChmTopicsTree();
-            node.path = path;
-            node.title = title;
-            node.parent = currentDirNode;
-            currentDirNode.children.add(node);
-
-            if (path.equals("/")) {
-                node.title = "Main Page";
-                node.path = homeFile;
-                continue;
-            } else if (path.endsWith("/")) {
-                currentDirNode = node;
-            }
-        }
-
-        return root;
     }
 }

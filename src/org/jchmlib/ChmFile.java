@@ -347,8 +347,6 @@ public class ChmFile {
                 home_file = "/index.html";
             } else if (resolveObject("/index.htm") != null) {
                 home_file = "/index.htm";
-            } else {
-                home_file = "/nonchmweb/";
             }
         }
         if (title == null || title.length() == 0) {

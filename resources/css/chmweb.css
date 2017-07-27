@@ -142,6 +142,7 @@ h1 {
   white-space: nowrap;
 }
 
+/*noinspection CssUnusedSymbol*/
 table.filelist {
   margin: 20px;
   width: 90%;
@@ -152,6 +153,7 @@ table.filelist tbody tr:nth-child(odd) td {
   background-color: #eee;
 }
 
+/*noinspection CssUnusedSymbol*/
 td.filesize {
   text-align: right;
   padding-left: 10px;
@@ -159,11 +161,11 @@ td.filesize {
 }
 
 td.file {
-  background: url(../img/doc.png) 0px -2px no-repeat;
+  background: url(../img/doc.png) 0 -2px no-repeat;
   padding-left: 20px;
 }
 
 td.folder {
-  background: url(../img/folderclosed.png) 0px -2px no-repeat;
+  background: url(../img/folderclosed.png) 0 -2px no-repeat;
   padding-left: 20px;
 }

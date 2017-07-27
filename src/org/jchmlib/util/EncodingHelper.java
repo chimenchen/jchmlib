@@ -151,15 +151,6 @@ public class EncodingHelper {
             new EncodingTable("Zulu", "", 0x0435, 1252, 0, "CP1252")
     };
 
-    public static int findCodePage(int lcid) {
-        for (EncodingTable anEncodingTable : encodingTable) {
-            if (anEncodingTable.lcid == lcid) {
-                return anEncodingTable.codepage;
-            }
-        }
-        return 0;
-    }
-
     public static String findCodec(int lcid) {
         for (EncodingTable anEncodingTable : encodingTable) {
             if (anEncodingTable.lcid == lcid) {
@@ -167,33 +158,6 @@ public class EncodingHelper {
             }
         }
         return "UTF-8";
-    }
-
-    public static String findCharset(int lcid) {
-        for (EncodingTable anEncodingTable : encodingTable) {
-            if (anEncodingTable.lcid == lcid) {
-                return anEncodingTable.charset;
-            }
-        }
-        return "English";
-    }
-
-    public static String findCountry(int lcid) {
-        for (EncodingTable anEncodingTable : encodingTable) {
-            if (anEncodingTable.lcid == lcid) {
-                return anEncodingTable.country;
-            }
-        }
-        return "";
-    }
-
-    public static int findICharset(int lcid) {
-        for (EncodingTable anEncodingTable : encodingTable) {
-            if (anEncodingTable.lcid == lcid) {
-                return anEncodingTable.icharset;
-            }
-        }
-        return 0;
     }
 
 }

@@ -24,8 +24,6 @@ public class HttpRequest {
      */
     public static final String __GET = "GET";
 
-    private BufferedReader reader;
-
     private String encoding;
 
     private URI uri = null;
@@ -43,6 +41,7 @@ public class HttpRequest {
     public HttpRequest(InputStream input, String encoding) {
         this.encoding = encoding;
 
+        BufferedReader reader;
         try {
             reader = new BufferedReader(new InputStreamReader(input, encoding));
         } catch (UnsupportedEncodingException e) {
@@ -167,7 +166,6 @@ public class HttpRequest {
 
         // key-and-value pairs
         String[] pairs = Pattern.compile("&").split(query);
-        int len = pairs.length;
         for (String pair : pairs) {
             String[] s2 = Pattern.compile("=").split(pair);
             if (s2 != null && s2.length == 2) {
