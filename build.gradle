@@ -34,7 +34,7 @@ sourceSets {
 }
 
 compileJava {
-    options.compilerArgs << "-XDignore.symbol.file=true" << "-Xlint:unchecked"
+    options.compilerArgs << "-XDignore.symbol.file=true" << "-Xlint:unchecked" << "-target" << "1.6" << "-source" << "1.6"
     options.fork = true
     options.forkOptions.executable = "javac"
 }
@@ -111,6 +111,14 @@ task dmg(dependsOn: appJar) {
     def jarFile = appJar.outputs.files[0].path
     def deployDir = "${buildDir}/deploy"
 
+    def runtime = ""
+    def expectedJdkDir = "$rootDir/package/macosx/jdk"
+
+    File testFile = new File(expectedJdkDir);
+    if (testFile.exists()) {
+        runtime = expectedJdkDir
+    }
+
     file(deployDir).mkdirs()
 
     doLast { exec {
@@ -124,6 +132,7 @@ task dmg(dependsOn: appJar) {
              "-outfile", appName,
              "-srcfiles", jarFile,
              "-BappVersion=$version",
+             "-Bruntime=$runtime",
              "-verbose"
     }}
 }
@@ -136,6 +145,5 @@ launch4j {
   productName = appJar.baseName
   version = "0.2"
   fileDescription = "A web server for viewing CHM files in web browser"
-  description = "A web server for viewing CHM files in web browser"
 }
 

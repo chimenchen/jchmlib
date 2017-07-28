@@ -45,7 +45,7 @@ public class ChmIndexSearcher {
         }
 
         ArrayList<IndexSearchResult> resultList;
-        resultList = new ArrayList<>(results.values());
+        resultList = new ArrayList<IndexSearchResult>(results.values());
 
         resultList.sort(new Comparator<IndexSearchResult>() {
             @Override
@@ -333,7 +333,7 @@ public class ChmIndexSearcher {
             // locations of the word in the topics
             long locationCodeCount = bitReader.getSrInt(
                     ftsHeader.codeCountS, ftsHeader.codeCountR);
-            Set<Long> locationCodes = new LinkedHashSet<>();
+            Set<Long> locationCodes = new LinkedHashSet<Long>();
             long lastLocationCode = 0;
             for (int j = 0; j < locationCodeCount; j++) {
                 long locationCode = bitReader.getSrInt(ftsHeader.locCodesS, ftsHeader.locCodesR);
@@ -395,7 +395,7 @@ public class ChmIndexSearcher {
 
         if (results == null || results.size() < 300) {
             if (results == null) {
-                results = new LinkedHashMap<>();
+                results = new LinkedHashMap<String, IndexSearchResult>();
             }
 
             IndexSearchResult result;
@@ -404,7 +404,7 @@ public class ChmIndexSearcher {
                 // handle multibyte word (like CJK word)
                 // check the current char is right after the last char in the file.
                 if (!subQuery.isNewWord) {
-                    Set<Long> newLocationCodes = new HashSet<>();
+                    Set<Long> newLocationCodes = new HashSet<Long>();
                     for (Long location : locationCodes) {
                         Long lastLocation = location - 1;
                         if (result.locationCodes.contains(lastLocation)) {

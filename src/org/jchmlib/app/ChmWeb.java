@@ -579,7 +579,7 @@ class DirChmEnumerator implements ChmEnumerator {
     final ArrayList<ChmUnitInfo> files;
 
     DirChmEnumerator() {
-        files = new ArrayList<>();
+        files = new ArrayList<ChmUnitInfo>();
     }
 
     public void enumerate(ChmUnitInfo ui) {

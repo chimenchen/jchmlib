@@ -126,7 +126,7 @@ public class ChmWebApp {
             }
         };
 
-        JPopupMenu popup = new JPopupMenu();
+        final JPopupMenu popup = new JPopupMenu();
 
         JMenuItem menuItemOpenInBrowser = new JMenuItem(new AbstractAction("Open in browser") {
             @Override
@@ -200,7 +200,7 @@ public class ChmWebApp {
         });
         popup.add(menuItemOpenFile);
 
-        JPopupMenu popup2 = new JPopupMenu();
+        final JPopupMenu popup2 = new JPopupMenu();
 
         JMenuItem menuItemOpenFile2 = new JMenuItem("Open CHM file");
         menuItemOpenFile2.addActionListener(menuItemOpenFile.getAction());
@@ -312,7 +312,7 @@ public class ChmWebApp {
         }
     }
 
-    private void addServer(ChmWeb server) {
+    private void addServer(final ChmWeb server) {
         servers.add(server);
         SwingUtilities.invokeLater(new Runnable() {
             @Override
