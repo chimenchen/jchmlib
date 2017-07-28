@@ -1,29 +1,30 @@
 package org.jchmlib.util;
 
+@SuppressWarnings({"unused", "WeakerAccess"})
 class EncodingTable {
 
-    String charset;
-    String country;
-    int lcid;
-    int codepage;
-    int icharset;
-    String codec;
+    final String charset;
+    final String country;
+    final int lcid;
+    final int codepage;
+    final int icharset;
+    final String encoding;
 
     EncodingTable(String charset, String country,
             int lcid, int codepage,
-            int icharset, String codec) {
+            int icharset, String encoding) {
         this.charset = charset;
         this.country = country;
         this.lcid = lcid;
         this.codepage = codepage;
         this.icharset = icharset;
-        this.codec = codec;
+        this.encoding = encoding;
     }
 }
 
 public class EncodingHelper {
 
-    static EncodingTable[] encodingTable = new EncodingTable[]{
+    private static final EncodingTable[] encodingTable = new EncodingTable[]{
             new EncodingTable("Afrikaans", "", 0x0436, 1252, 0, "CP1252"),
             new EncodingTable("Albanian", "", 0x041C, 1250, 238, "CP1250"),
             new EncodingTable("Arabic", "Algeria", 0x1401, 1256, 0, "CP1256"),
@@ -151,10 +152,10 @@ public class EncodingHelper {
             new EncodingTable("Zulu", "", 0x0435, 1252, 0, "CP1252")
     };
 
-    public static String findCodec(int lcid) {
+    public static String findEncoding(int lcid) {
         for (EncodingTable anEncodingTable : encodingTable) {
             if (anEncodingTable.lcid == lcid) {
-                return anEncodingTable.codec;
+                return anEncodingTable.encoding;
             }
         }
         return "UTF-8";

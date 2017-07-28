@@ -1,7 +1,5 @@
-/* ByteBufferHelper.java 2007/10/18
- *
- * Copyright 2006 Chimen Chen. All rights reserved.
- *
+/*
+ * Copyright 2017 chimenchen. All rights reserved.
  */
 
 package org.jchmlib.util;
@@ -46,15 +44,15 @@ public class ByteBufferHelper {
         }
     }
 
-    public static String parseString(ByteBuffer bb, String codec) {
+    public static String parseString(ByteBuffer bb, String encoding) {
         int len = bb.remaining();
-        return parseString(bb, len, codec);
+        return parseString(bb, len, encoding);
     }
 
     /**
      * Parses a String using the named Charset Encoding.
      */
-    public static String parseString(ByteBuffer bb, int strLen, String codec) {
+    public static String parseString(ByteBuffer bb, int strLen, String encoding) {
         int length = Math.min(bb.remaining(), strLen);
         if (length <= 0) {
             return "";
@@ -70,7 +68,7 @@ public class ByteBufferHelper {
             }
         }
 
-        return bytesToString(buf, 0, length, codec);
+        return bytesToString(buf, 0, length, encoding);
     }
 
     /**

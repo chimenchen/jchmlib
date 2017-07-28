@@ -7,6 +7,7 @@ import org.jchmlib.util.ByteBufferHelper;
 /**
  * Directory header
  */
+@SuppressWarnings({"unused", "WeakerAccess"})
 class ChmItspHeader {
 
     int headerLen;         /*  8 */

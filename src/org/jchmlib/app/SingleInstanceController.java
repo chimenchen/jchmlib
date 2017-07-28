@@ -9,9 +9,9 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 
-public class SingleInstanceController extends Thread {
+class SingleInstanceController extends Thread {
 
-    public static int PORT = 0xbf44;
+    private static final int PORT = 0xbf44;
     private final ChmWebApp app;
     private ServerSocket listenSocket;
 

@@ -123,7 +123,7 @@ task dmg(dependsOn: appJar) {
     def runtime = ""
     def expectedJdkDir = "$rootDir/package/macosx/jdk"
 
-    File testFile = new File(expectedJdkDir);
+    File testFile = new File(expectedJdkDir)
     if (testFile.exists()) {
         runtime = expectedJdkDir
     }

@@ -1,7 +1,5 @@
-/* UDecoder.java 2006/05/25
- *
- * Copyright 2006 Chimen Chen. All rights reserved.
- *
+/*
+ * Copyright 2017 chimenchen. All rights reserved.
  */
 
 package org.jchmlib.app.net;
@@ -14,7 +12,7 @@ import org.jchmlib.util.ByteBufferHelper;
  * decoding a String from the <CODE>application/x-www-form-urlencoded</CODE>
  * MIME format.
  */
-public class UDecoder {
+class UDecoder {
 
     private static final Logger LOG = Logger.getLogger(UDecoder.class.getName());
 

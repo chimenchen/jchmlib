@@ -6,28 +6,27 @@ import java.util.HashMap;
 
 public class TagReader {
 
+    private final HashMap<String, Integer> tagLevels;
+    private final ByteBuffer data;
+    private final String encoding;
     private int level;
-    private HashMap<String, Integer> tagLevels;
-    private ByteBuffer data;
-    private String codec;
 
-    public TagReader(ByteBuffer data, String codec) {
+    public TagReader(ByteBuffer data, String encoding) {
         this.data = data;
-        this.codec = codec;
+        this.encoding = encoding;
         tagLevels = new HashMap<String, Integer>();
         level = 0;
     }
 
     public Tag getNext() {
         Tag ret = new Tag();
-        ret.totalLevel = level;
+        // ret.totalLevel = level;
 
         if (!data.hasRemaining()) {
             return ret;
         }
 
         String tagString = readTag();
-        // String istring = tagString;
 
         if (tagString.startsWith("<!")) { // comment or metadata, skip it
             return getNext();
@@ -39,7 +38,7 @@ public class TagReader {
         if (tagString.startsWith("</")) { // a closed tag
             ret.name = tagString.substring(1, tagString.length() - 1).trim().toLowerCase();
             level--;
-            ret.totalLevel = level;
+            // ret.totalLevel = level;
             if (tagLevels.containsKey(ret.name.substring(1))) {
                 tagLevel = tagLevels.get(ret.name.substring(1));
                 tagLevel--;
@@ -86,9 +85,6 @@ public class TagReader {
                 tagString = tagString.substring(indexEq + 2 + indexQuote + 2);
                 indexEq = tagString.indexOf("=");
             }
-            //if (ret.name.equalsIgnoreCase("param") && i != 2) {
-            // System.out.println("Strange: "+istring);
-            // }
         }
 
         return ret;
@@ -125,9 +121,9 @@ public class TagReader {
 
         String tag;
         try {
-            tag = new String(buf, 0, pos, codec);
+            tag = new String(buf, 0, pos, encoding);
         } catch (UnsupportedEncodingException e) {
-            // System.err.println("Encoding " + codec + " unsupported");
+            // System.err.println("Encoding " + encoding + " unsupported");
             tag = new String(buf, 0, pos);
         }
         return tag;

@@ -28,10 +28,6 @@ public class HttpResponse {
         }
     }
 
-    public PrintStream getWriter() {
-        return writer;
-    }
-
     /**
      * Send a HTTP header to the client
      * The first line is a status message from the server to the client.
@@ -68,6 +64,7 @@ public class HttpResponse {
         }
     }
 
+    @SuppressWarnings("SameParameterValue")
     public void write(byte[] bytes, int offset, int length) {
         if (bytes == null || bytes.length == 0 || length == 0) {
             return;

@@ -5,9 +5,10 @@ import com.apple.eawt.Application;
 import com.apple.eawt.OpenFilesHandler;
 import java.io.File;
 
+@SuppressWarnings("unused")
 class ChmWebAppMacSupport implements ChmWebAppSpecificPlatform, OpenFilesHandler {
 
-    ChmWebApp app;
+    private ChmWebApp app;
 
     public ChmWebAppMacSupport() {
     }

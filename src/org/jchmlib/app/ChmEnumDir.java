@@ -6,6 +6,7 @@ import org.jchmlib.ChmEnumerator;
 import org.jchmlib.ChmFile;
 import org.jchmlib.ChmUnitInfo;
 
+@SuppressWarnings("WeakerAccess")
 public class ChmEnumDir {
 
     public static void main(String[] argv) throws IOException {
@@ -39,8 +40,9 @@ public class ChmEnumDir {
 
 class DirEnumerator implements ChmEnumerator {
 
-    private PrintStream out;
+    private final PrintStream out;
 
+    @SuppressWarnings("SameParameterValue")
     public DirEnumerator(PrintStream out) {
         this.out = out;
     }

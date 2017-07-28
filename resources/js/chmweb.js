@@ -1,6 +1,6 @@
 Array.prototype.clean = function () {
   for (var i = 0; i < this.length; i++) {
-    if (this[i] == undefined) {
+    if (this[i] === undefined) {
       this.splice(i, 1);
       i--;
     }
@@ -34,8 +34,9 @@ if (!Function.prototype.bind) {
 }
 
 var openTab = function (event, tabName) {
+  var i;
   var tabcontent = document.querySelectorAll(".tabcontent");
-  for (var i = 0; i < tabcontent.length; i++) {
+  for (i = 0; i < tabcontent.length; i++) {
     tabcontent[i].className = tabcontent[i].className.replace(" active", "");
     if (tabcontent[i].id === tabName) {
       tabcontent[i].className += " active";
@@ -43,7 +44,7 @@ var openTab = function (event, tabName) {
   }
 
   var tablinks = document.querySelectorAll(".tablinks");
-  for (var i = 0; i < tablinks.length; i++) {
+  for (i = 0; i < tablinks.length; i++) {
     tablinks[i].className = tablinks[i].className.replace(" active", "");
   }
   var target = (event.currentTarget) ? event.currentTarget : event.srcElement;

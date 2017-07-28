@@ -1,7 +1,5 @@
-/* ChmEnumerator.java 06/05/25
- *
- * Copyright 2006 Chimen Chen. All rights reserved.
- *
+/*
+ * Copyright 2017 chimenchen. All rights reserved.
  */
 
 package org.jchmlib.app;
@@ -32,6 +30,7 @@ import org.jchmlib.app.net.HttpResponse;
  * A simple web server.
  * You can use it to view CHM files.
  */
+@SuppressWarnings("WeakerAccess")
 public class ChmWeb extends Thread {
 
     private static final Logger LOG = Logger.getLogger(ChmWeb.class.getName());
@@ -39,7 +38,7 @@ public class ChmWeb extends Thread {
     private ServerSocket listen_socket;
     private ChmFile chmFile;
     private String chmFilePath = null;
-    private String codec = "UTF8";
+    private String encoding = "UTF8";
     private String resourcesPath;
 
     public ChmWeb() {
@@ -51,10 +50,10 @@ public class ChmWeb extends Thread {
         }
     }
 
-    // reason: some CHM file may use the wrong codec.
-    private String fixCodec(String originCodec) {
-        // for CJK or the like, use the origin codec.
-        // see EncodingHelper for codec names.
+    // reason: some CHM file may use the wrong encoding.
+    private String fixEncoding(String originCodec) {
+        // for CJK or the like, use the origin encoding.
+        // see EncodingHelper for encoding names.
         if (!originCodec.equalsIgnoreCase("Latin1") &&
                 !originCodec.startsWith("CP")) {
             return originCodec;
@@ -72,7 +71,7 @@ public class ChmWeb extends Thread {
         try {
             chmFilePath = chmFileName;
             chmFile = new ChmFile(chmFileName);
-            codec = fixCodec(chmFile.codec);
+            encoding = fixEncoding(chmFile.getEncoding());
         } catch (Exception e) {
             System.err.println("Failed to open this CHM file.");
             e.printStackTrace();
@@ -126,7 +125,7 @@ public class ChmWeb extends Thread {
         if (chmFile == null) {
             return "";
         } else {
-            return chmFile.title;
+            return chmFile.getTitle();
         }
     }
 
@@ -139,7 +138,7 @@ public class ChmWeb extends Thread {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     Socket client_socket = listen_socket.accept();
-                    new ClientHandler(client_socket, chmFile, codec,
+                    new ClientHandler(client_socket, chmFile, encoding,
                             isRunningFromJar, resourcesPath);
                 } catch (SocketException ignored) {
                     break;
@@ -166,7 +165,7 @@ public class ChmWeb extends Thread {
         interrupt();
     }
 
-    public boolean checkRunningFromJar() {
+    boolean checkRunningFromJar() {
         String className = this.getClass().getName().replace('.', '/');
         String classJar = this.getClass().getResource("/" + className + ".class").toString();
         return classJar.startsWith("jar:");
@@ -183,29 +182,28 @@ class ClientHandler extends Thread {
     private final Socket client;
     private final ChmFile chmFile;
     private final boolean isRunningFromJar;
-
-    private String codec;
+    private final String resourcesPath;
+    private String encoding;
     private HttpRequest request;
     private HttpResponse response;
     private String requestedFile;
-    private String resourcesPath;
 
-    public ClientHandler(Socket client_socket, ChmFile file, String codec,
+    public ClientHandler(Socket client_socket, ChmFile file, String encoding,
             boolean isRunningFromJar, String resourcesPath) {
         client = client_socket;
         chmFile = file;
-        this.codec = codec;
+        this.encoding = encoding;
         this.isRunningFromJar = isRunningFromJar;
         this.resourcesPath = resourcesPath;
 
         try {
-            request = new HttpRequest(client.getInputStream(), this.codec);
+            request = new HttpRequest(client.getInputStream(), this.encoding);
             requestedFile = request.getPath();
             if (requestedFile != null && requestedFile.startsWith("/chmweb/")) {
-                this.codec = "UTF8";
-                request.setEncoding(this.codec);  // for parsing parameters
+                this.encoding = "UTF8";
+                request.setEncoding(this.encoding);  // for parsing parameters
             }
-            response = new HttpResponse(client.getOutputStream(), this.codec);
+            response = new HttpResponse(client.getOutputStream(), this.encoding);
         } catch (IOException e) {
             e.printStackTrace();
             try {
@@ -269,7 +267,8 @@ class ClientHandler extends Thread {
         response.sendHeader("text/html");
         response.sendString("<html>\n" +
                 "<head>\n" +
-                "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=" + codec + "\">\n"
+                "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=" + encoding
+                + "\">\n"
                 +
                 "<title>" + requestedFile + "</title>" +
                 "<link rel=\"stylesheet\" href=\"/chmweb/css/chmweb.css\">" +
@@ -332,7 +331,7 @@ class ClientHandler extends Thread {
                 response.sendString("<html>\n" +
                         "<head>\n" +
                         "<meta http-equiv=\"Content-Type\" content=\"text/html; " +
-                        " charset=" + codec + "\">\n" +
+                        " charset=" + encoding + "\">\n" +
                         "<title>404</title>" +
                         "</head>" +
                         "<body>\n" +
@@ -361,13 +360,13 @@ class ClientHandler extends Thread {
 
     private void deliverMain() {
         response.sendHeader("text/html");
-        String homeFile = fixChmLink(chmFile.home_file);
+        String homeFile = fixChmLink(chmFile.getHomeFile());
         response.sendLine("<html>\n"
                 + "<head>\n"
                 + "<meta http-equiv=\"Content-Type\" "
-                + " content=\"text/html; charset=" + codec
+                + " content=\"text/html; charset=" + encoding
                 + "\">\n"
-                + "<title>" + chmFile.title + "</title>\n"
+                + "<title>" + chmFile.getTitle() + "</title>\n"
                 + "</head>\n"
                 + "<frameset cols=\"200, *\">\n"
                 + "  <frame src=\"/chmweb/sidebar2.html\" name=\"treefrm\">\n"
@@ -433,7 +432,7 @@ class ClientHandler extends Thread {
         root.path = "/";
         ChmTopicsTree currentDirNode = root;
 
-        addFileNode(fixChmLink(chmFile.home_file), "Main Page", root);
+        addFileNode(fixChmLink(chmFile.getHomeFile()), "Main Page", root);
         addFileNode(fixChmLink("/"), "Root Directory", root);
         for (ChmUnitInfo ui : files) {
             String path = ui.getPath();

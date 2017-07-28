@@ -1,7 +1,5 @@
-/* ChmEnumerator.java 2006/05/25
- *
- * Copyright 2006 Chimen Chen. All rights reserved.
- *
+/*
+ * Copyright 2017 chimenchen. All rights reserved.
  */
 
 package org.jchmlib;

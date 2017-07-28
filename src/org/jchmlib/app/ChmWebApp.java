@@ -28,6 +28,7 @@ import javax.swing.WindowConstants;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.table.DefaultTableModel;
 
+@SuppressWarnings("WeakerAccess")
 public class ChmWebApp {
 
     private static final Logger LOG = Logger.getLogger(ChmWebApp.class.getName());
@@ -347,7 +348,7 @@ public class ChmWebApp {
         }.start();
     }
 
-    synchronized void openFileBlocked(final File file) {
+    private synchronized void openFileBlocked(final File file) {
         ChmWeb server = new ChmWeb();
         if (server.serveChmFile(0, file.getAbsolutePath())) {
             addServer(server);
@@ -388,7 +389,7 @@ public class ChmWebApp {
 class ChmWebTableModel extends DefaultTableModel {
 
     private final String[] columnNames = {"Port", "Title", "File Path"};
-    private ArrayList<ChmWeb> servers;
+    private final ArrayList<ChmWeb> servers;
 
     ChmWebTableModel(ArrayList<ChmWeb> servers) {
         this.servers = servers;

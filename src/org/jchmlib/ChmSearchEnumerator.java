@@ -1,7 +1,5 @@
-/* SearchEnumerator.java 2007/10/12
- *
- * Copyright 2006 Chimen Chen. All rights reserved.
- *
+/*
+ * Copyright 2017 chimenchen. All rights reserved.
  */
 
 package org.jchmlib;
@@ -30,12 +28,13 @@ import org.jchmlib.util.ByteBufferHelper;
  */
 public class ChmSearchEnumerator implements ChmEnumerator {
 
-    private ChmFile chmFile;
-    private Collection<String> keywords;
-    private ArrayList<String> results;
-    private long startTimestamp;
+    private final ChmFile chmFile;
+    private final Collection<String> keywords;
+    private final ArrayList<String> results;
+    private final long startTimestamp;
     private long filesSearched;
 
+    @SuppressWarnings("ConstantConditions")
     public ChmSearchEnumerator(ChmFile chmFile, String query) {
         startTimestamp = System.currentTimeMillis() / 1000;
         filesSearched = 0;
@@ -108,7 +107,7 @@ public class ChmSearchEnumerator implements ChmEnumerator {
         if (buf == null) {
             return;
         }
-        String data = ByteBufferHelper.peakAsString(buf, chmFile.codec);
+        String data = ByteBufferHelper.peakAsString(buf, chmFile.encoding);
         if (data == null) {
             return;
         }
