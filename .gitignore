@@ -30,4 +30,6 @@ build/
 logging.properties
 chm/
 web/
+package/macosx/tmp/
+package/macosx/jdk/
 

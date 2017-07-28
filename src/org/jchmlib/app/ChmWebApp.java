@@ -98,11 +98,21 @@ public class ChmWebApp {
             server.serveChmFile(port, chmFileName);
         } else {
             ChmWebApp app = new ChmWebApp();
-            if (chmFileName != null) {
-                ChmWeb server = new ChmWeb();
-                if (server.serveChmFile(port, chmFileName)) {
-                    app.addServer(server);
+
+            SingleInstanceController controller = new SingleInstanceController(app);
+            if (!controller.tryStartInstance()) {
+                if (chmFileName != null) {
+                    controller.sendOpenFileRequest(chmFileName);
+                    System.out.println("Open file in another running instance.");
+                } else {
+                    controller.sendBringToFrontRequest();
                 }
+                return;
+            }
+            controller.start();
+
+            if (chmFileName != null) {
+                app.openFile(new File(chmFileName));
             }
             app.startGui();
         }
@@ -293,7 +303,15 @@ public class ChmWebApp {
         handleMac();
     }
 
-    private void openInBrowser(ChmWeb server) {
+    private void openInBrowser(final ChmWeb server) {
+        new Thread() {
+            public void run() {
+                openInBrowserBlocked(server);
+            }
+        }.start();
+    }
+
+    private void openInBrowserBlocked(ChmWeb server) {
         int port = server.getServerPort();
         String url = String.format("http://localhost:%d/@index.html", port);
         if (Desktop.isDesktopSupported()) {
@@ -314,23 +332,33 @@ public class ChmWebApp {
 
     private void addServer(final ChmWeb server) {
         servers.add(server);
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                if (model != null) {
-                    model.fireTableDataChanged();
-                }
-                openInBrowser(server);
-            }
-        });
+        if (model != null) {
+            model.fireTableDataChanged();
+        }
+
+        openInBrowser(server);
     }
 
-    synchronized void openFile(File file) {
+    synchronized void openFile(final File file) {
+        new Thread() {
+            public void run() {
+                openFileBlocked(file);
+            }
+        }.start();
+    }
+
+    synchronized void openFileBlocked(final File file) {
         ChmWeb server = new ChmWeb();
         if (server.serveChmFile(0, file.getAbsolutePath())) {
             addServer(server);
         } else {
-            JOptionPane.showMessageDialog(frame, "Failed to open " + file.getName());
+            SwingUtilities.invokeLater(new Runnable() {
+                @Override
+                public void run() {
+                    JOptionPane.showMessageDialog(frame,
+                            "Failed to open " + file.getName());
+                }
+            });
         }
     }
 
@@ -347,6 +375,12 @@ public class ChmWebApp {
             sp.initialize(this);
         } catch (Exception ignored) {
             LOG.info("Mac support is broken: " + ignored);
+        }
+    }
+
+    public void bringToFront() {
+        if (frame != null) {
+            frame.toFront();
         }
     }
 }
