@@ -3,6 +3,7 @@ package org.jchmlib.app;
 import java.io.IOException;
 import org.jchmlib.ChmFile;
 
+@SuppressWarnings("WeakerAccess")
 public class ChmTopics {
 
     public static void main(String[] argv) throws IOException {

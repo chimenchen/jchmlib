@@ -1,7 +1,5 @@
-/* MimeMapper.java 06/08/22
- *
- * Copyright 2006 Chimen Chen. All rights reserved.
- *
+/*
+ * Copyright 2017 chimenchen. All rights reserved.
  */
 
 package org.jchmlib.app.net;
@@ -10,7 +8,7 @@ import java.util.HashMap;
 
 class MimeMapper {
 
-    private static HashMap<String, String> extToMimeType;
+    private static final HashMap<String, String> extToMimeType;
 
     static {
         extToMimeType = new HashMap<String, String>();

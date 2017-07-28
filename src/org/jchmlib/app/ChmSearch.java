@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import org.jchmlib.ChmFile;
 
+@SuppressWarnings("WeakerAccess")
 public class ChmSearch {
 
     public static void main(String[] argv) throws IOException {

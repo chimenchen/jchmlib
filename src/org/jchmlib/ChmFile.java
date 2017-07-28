@@ -1,7 +1,5 @@
-/* ChmFile.java 2007/10/12
- *
- * Copyright 2006 Chimen Chen. All rights reserved.
- *
+/*
+ * Copyright 2017 chimenchen. All rights reserved.
  */
 
 package org.jchmlib;
@@ -27,12 +25,6 @@ import org.jchmlib.util.LZXInflator;
 
 public class ChmFile {
 
-    public final static int CHM_ITSF_V3_LEN = 0X60;
-    public final static int CHM_ITSP_V1_LEN = 0X54;
-    public final static int CHM_COMPRESSED = 1;
-    public final static int CHM_UNCOMPRESSED = 0;
-    public final static int CHM_PARAM_MAX_BLOCKS_CACHED = 0;
-    public final static int CHM_MAX_BLOCKS_CACHED = 5;
     /**
      * Path starts with "/", but not "/#" and "/$".
      */
@@ -67,53 +59,61 @@ public class ChmFile {
      * CHM_ENUMERATE_DIRS
      */
     public final static int CHM_ENUMERATE_ALL = 31;
-    public final static int CHM_LZXC_RESETTABLE_V1_LEN = 0x28;
-    public final static int FTS_HEADER_LEN = 0x82;  // was 0x32;
+
+    final static int FTS_HEADER_LEN = 0x82;  // was 0x32;
+    private final static int CHM_LZXC_RESETTABLE_V1_LEN = 0x28;
+    private final static int CHM_ITSF_V3_LEN = 0X60;
+    private final static int CHM_ITSP_V1_LEN = 0X54;
+    private final static int CHM_COMPRESSED = 1;
+    private final static int CHM_UNCOMPRESSED = 0;
+
     // names of sections essential to decompression
-    public static final String CHMU_RESET_TABLE =
+    private final static String CHMU_RESET_TABLE =
             "::DataSpace/Storage/MSCompressed/Transform/" +
                     "{7FC28940-9D31-11D0-9B27-00A0C91E9C7C}/" +
                     "InstanceData/ResetTable";
-    public static final String CHMU_LZXC_CONTROLDATA =
+    private final static String CHMU_LZXC_CONTROLDATA =
             "::DataSpace/Storage/MSCompressed/ControlData";
-    public static final String CHMU_CONTENT =
+    private final static String CHMU_CONTENT =
             "::DataSpace/Storage/MSCompressed/Content";
-    public static final String CHMU_SPANINFO =
-            "::DataSpace/Storage/MSCompressed/SpanInfo";
-    private static final Logger LOG = Logger.getLogger(ChmFile.class.getName());
-    /**
-     * Path of the main file (default file to show on startup).
-     */
-    public String home_file;
-    /**
-     * .hhc file which gives a topic tree
-     */
-    public String topics_file;
-    /**
-     * .hhk file which gives a index tree
-     */
-    public String index_file;
-    /**
-     * The title of this .chm archive
-     */
-    public String title;
-    /**
-     * The generator of this .chm archiev.
-     * Normally, it would be HHA Version 4.74.8702.
-     */
-    public String generator;
 
+    private final static Logger LOG = Logger.getLogger(ChmFile.class.getName());
     /**
-     * The language codepage ID of this .chm archive
+     * Mapping from paths to {@link ChmUnitInfo} objects.
      */
-    public int detectedLCID = -1;
+    // LinkedHashMap, since we want it to remember the order
+    // mappings are inserted.
+    private final HashMap<String, ChmUnitInfo> dirMap = new LinkedHashMap<String, ChmUnitInfo>();
     /**
      * The character encoding of this .chm archive
      */
-    public String codec = "UTF-8";
-
+    String encoding = "UTF-8";
+    /**
+     * The language codepage ID of this .chm archive
+     */
+    private int detectedLCID = -1;
+    /**
+     * Path of the main file (default file to show on startup).
+     */
+    private String homeFile;
+    /**
+     * .hhc file which gives a topic tree
+     */
+    private String topicsFile;
+    /**
+     * .hhk file which gives a index tree
+     */
+    private String indexFile;
+    /**
+     * The title of this .chm archive
+     */
+    private String title;
+    /**
+     * The generator of this .chm archive.
+     * Normally, it would be HHA Version 4.74.8702.
+     */
+    private String generator;
     private RandomAccessFile rf;
-
     private int langIDInItsfHeader;
     /**
      * Offset within file of content section 0
@@ -129,18 +129,10 @@ public class ChmFile {
     private boolean compressionDisabled = false;
     // decompressor
     private LZXInflator lzxInflator;
-    /**
-     * Mapping from paths to {@link ChmUnitInfo} objects.
-     */
-    // LinkedHashMap, since we want it to remember the order
-    // mappings are inserted.
-    private HashMap<String, ChmUnitInfo> dirMap = new LinkedHashMap<String, ChmUnitInfo>();
-
     /*
      * A {@link ChmTopicsTree} object containing topics in the Chm file.
      */
     private ChmTopicsTree tree;
-
     private ChmIndexSearcher indexSearcher = null;
 
     /**
@@ -158,13 +150,10 @@ public class ChmFile {
         }
 
         readInitialHeaderAndDirectory();
-        // readDirectory();
-        // readDirectoryTable();
         readResetTable();
         readControlData();
         initInflator();
         initMiscFiles(filename);
-
     }
 
     /**
@@ -200,6 +189,38 @@ public class ChmFile {
         } else {
             return idx;
         }
+    }
+
+    public String getHomeFile() {
+        return homeFile;
+    }
+
+    @SuppressWarnings("unused")
+    public String getTopicsFile() {
+        return topicsFile;
+    }
+
+    @SuppressWarnings("unused")
+    public String getIndexFile() {
+        return indexFile;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    @SuppressWarnings("unused")
+    public String getGenerator() {
+        return generator;
+    }
+
+    public String getEncoding() {
+        return encoding;
+    }
+
+    @SuppressWarnings("unused")
+    public int getDetectedLCID() {
+        return detectedLCID;
     }
 
     private void readInitialHeaderAndDirectory() throws IOException {
@@ -319,6 +340,7 @@ public class ChmFile {
     }
 
     private void initInflator() {
+        // real window size is 2^lwindow_size
         int lwindow_size = ffs(windowSize) - 1;
         lzxInflator = new LZXInflator(lwindow_size);
     }
@@ -329,39 +351,39 @@ public class ChmFile {
         } catch (Exception ignored) {
         }
 
-        if (topics_file == null) {
-            topics_file = "";
+        if (topicsFile == null) {
+            topicsFile = "";
         }
-        if (index_file == null) {
-            index_file = "";
+        if (indexFile == null) {
+            indexFile = "";
         }
-        if (home_file == null) {
-            home_file = "";
+        if (homeFile == null) {
+            homeFile = "";
         }
-        if (home_file.equals("/")) {
+        if (homeFile.equals("/")) {
             if (resolveObject("/cover.html") != null) {
-                home_file = "/cover.html";
+                homeFile = "/cover.html";
             } else if (resolveObject("/cover.htm") != null) {
-                home_file = "/cover.htm";
+                homeFile = "/cover.htm";
             } else if (resolveObject("/index.html") != null) {
-                home_file = "/index.html";
+                homeFile = "/index.html";
             } else if (resolveObject("/index.htm") != null) {
-                home_file = "/index.htm";
+                homeFile = "/index.htm";
             }
         }
         if (title == null || title.length() == 0) {
             title = filename.replaceFirst("[.][^.]+$", "")
                     .replaceAll(".*[\\\\/]|\\.[^.]*$", "");
         }
-        if (codec == null || codec.length() == 0) {
+        if (encoding == null || encoding.length() == 0) {
             // this langID may still be wrong.
-            codec = EncodingHelper.findCodec(langIDInItsfHeader);
-            LOG.info("Fallback Encoding: " + codec);
-        } else if (codec.startsWith("CP")) {
-            String codecInItsfHeader = EncodingHelper.findCodec(langIDInItsfHeader);
-            if (!codecInItsfHeader.startsWith("CP")) { // better
-                codec = codecInItsfHeader;
-                LOG.info("Fixed Encoding: " + codec);
+            encoding = EncodingHelper.findEncoding(langIDInItsfHeader);
+            LOG.info("Fallback Encoding: " + encoding);
+        } else if (encoding.startsWith("CP")) {
+            String encodingInItsfHeader = EncodingHelper.findEncoding(langIDInItsfHeader);
+            if (!encodingInItsfHeader.startsWith("CP")) { // better
+                encoding = encodingInItsfHeader;
+                LOG.info("Fixed Encoding: " + encoding);
             }
         }
         if (generator == null) {
@@ -390,30 +412,30 @@ public class ChmFile {
             int len = buf.getShort();
             switch (type) {
                 case 0:
-                    topics_file = "/" + ByteBufferHelper.parseString(buf, len, codec);
-                    LOG.fine("topics file: " + topics_file);
+                    topicsFile = "/" + ByteBufferHelper.parseString(buf, len, encoding);
+                    LOG.fine("topics file: " + topicsFile);
                     break;
                 case 1:
-                    index_file = "/" + ByteBufferHelper.parseString(buf, len, codec);
-                    LOG.fine("index file: " + index_file);
+                    indexFile = "/" + ByteBufferHelper.parseString(buf, len, encoding);
+                    LOG.fine("index file: " + indexFile);
                     break;
                 case 2:
-                    home_file = "/" + ByteBufferHelper.parseString(buf, len, codec);
-                    LOG.info("home file: " + home_file);
+                    homeFile = "/" + ByteBufferHelper.parseString(buf, len, encoding);
+                    LOG.info("home file: " + homeFile);
                     break;
                 case 3:
-                    title = ByteBufferHelper.parseString(buf, len, codec);
+                    title = ByteBufferHelper.parseString(buf, len, encoding);
                     LOG.info("title: " + title);
                     break;
                 case 4:
                     detectedLCID = buf.getInt();
-                    codec = EncodingHelper.findCodec(detectedLCID);
+                    encoding = EncodingHelper.findEncoding(detectedLCID);
                     LOG.info(String.format("Language ID: 0x%x", detectedLCID));
-                    LOG.info("Encoding: " + codec);
+                    LOG.info("Encoding: " + encoding);
                     ByteBufferHelper.skip(buf, len - 4);
                     break;
                 case 9:
-                    generator = ByteBufferHelper.parseString(buf, len, codec);
+                    generator = ByteBufferHelper.parseString(buf, len, encoding);
                     LOG.fine("Generator: " + generator);
                     break;
                 default:
@@ -537,7 +559,7 @@ public class ChmFile {
      * Decompress a block.
      */
     private synchronized ByteBuffer decompressBlock(int block) {
-        int blockAlign = block % resetBlockCount; // reset intvl. aln.
+        int blockAlign = block % resetBlockCount; // reset interval align
 
         // check if we need previous blocks
         if (blockAlign != 0) {
@@ -573,10 +595,7 @@ public class ChmFile {
     }
 
     private boolean unitTypeMatched(ChmUnitInfo ui, int typeBits, int filterBits) {
-        if ((typeBits & ui.flags) == 0) {
-            return false;
-        }
-        return !(filterBits != 0 && (filterBits & ui.flags) == 0);
+        return (typeBits & ui.flags) != 0 && !(filterBits != 0 && (filterBits & ui.flags) == 0);
     }
 
     /**
@@ -695,7 +714,7 @@ public class ChmFile {
             return null;
         }
 
-        tree = ChmTopicsTree.buildTopicsTree(buf, codec);
+        tree = ChmTopicsTree.buildTopicsTree(buf, encoding);
         return tree;
     }
 
@@ -730,6 +749,7 @@ public class ChmFile {
      * @param wholeWords if false, matches indices that starts with text.
      * @param titlesOnly if true, search titles only;
      */
+    @SuppressWarnings("SameParameterValue")
     public HashMap<String, String> indexSearch(
             String text, boolean wholeWords, boolean titlesOnly) {
         ChmIndexSearcher searcher = getIndexSearcher();

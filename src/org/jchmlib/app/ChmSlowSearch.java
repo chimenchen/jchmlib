@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import org.jchmlib.ChmFile;
 import org.jchmlib.ChmSearchEnumerator;
 
+@SuppressWarnings("WeakerAccess")
 public class ChmSlowSearch {
 
     public static void main(String[] argv) throws IOException {

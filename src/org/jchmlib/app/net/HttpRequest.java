@@ -1,7 +1,5 @@
-/* HttpRequest.java 2006/08/22
- *
- * Copyright 2006 Chimen Chen. All rights reserved.
- *
+/*
+ * Copyright 2017 chimenchen. All rights reserved.
  */
 
 package org.jchmlib.app.net;
@@ -22,7 +20,7 @@ public class HttpRequest {
     /**
      * Request METHODS.
      */
-    public static final String __GET = "GET";
+    private static final String __GET = "GET";
 
     private String encoding;
 

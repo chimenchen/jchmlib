@@ -8,12 +8,13 @@ import org.jchmlib.ChmEnumerator;
 import org.jchmlib.ChmFile;
 import org.jchmlib.ChmUnitInfo;
 
+@SuppressWarnings("WeakerAccess")
 public class ChmExtract {
 
     public static void main(String[] argv) throws IOException {
 
         if (argv.length < 1) {
-            System.out.println("Usage: ChmExtract <chmfile> <outdir>");
+            System.out.println("Usage: ChmExtract <chmfile> <output-directory>");
             return;
         }
 
@@ -32,8 +33,8 @@ public class ChmExtract {
 
 class Extractor implements ChmEnumerator {
 
-    private String basePath;
-    private ChmFile chmFile;
+    private final String basePath;
+    private final ChmFile chmFile;
 
 
     public Extractor(ChmFile chmFile, String basePath) {
@@ -46,6 +47,7 @@ class Extractor implements ChmEnumerator {
         }
     }
 
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     public void enumerate(ChmUnitInfo ui) {
         String path = ui.getPath();
         long length = ui.getLength();

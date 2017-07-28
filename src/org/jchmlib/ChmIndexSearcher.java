@@ -62,14 +62,14 @@ public class ChmIndexSearcher {
         return finalResults;
     }
 
-    private ArrayList<SubQuery> splitQuery(String originalQuery, String codec) {
+    private ArrayList<SubQuery> splitQuery(String originalQuery) {
         ArrayList<SubQuery> queryList = new ArrayList<SubQuery>();
         StringBuilder sb = new StringBuilder();
         boolean lastIsMultibyte = false;
         for (char c : originalQuery.toCharArray()) {
             byte[] bytesForChar;
             try {
-                bytesForChar = String.valueOf(c).getBytes(codec);
+                bytesForChar = String.valueOf(c).getBytes(chmFile.encoding);
             } catch (UnsupportedEncodingException e) {
                 LOG.info("invalid char " + e);
                 continue;
@@ -111,7 +111,7 @@ public class ChmIndexSearcher {
         }
         LOG.info(" <=> query " + query);
 
-        ArrayList<SubQuery> queryList = splitQuery(query, chmFile.codec);
+        ArrayList<SubQuery> queryList = splitQuery(query);
         for (int i = 0; i < queryList.size(); i++) {
             subQueryStep = i;
             subQuery = queryList.get(i);
@@ -146,7 +146,7 @@ public class ChmIndexSearcher {
         LOG.info(" <=> sub query " + query);
         byte[] queryAsBytes;
         try {
-            queryAsBytes = query.toLowerCase().getBytes(chmFile.codec);
+            queryAsBytes = query.toLowerCase().getBytes(chmFile.encoding);
         } catch (UnsupportedEncodingException ignored) {
             LOG.info("failed to decode query: " + query);
             return;
@@ -246,7 +246,7 @@ public class ChmIndexSearcher {
     private void initWordBuilder() {
         if (wordBuilder == null) {
             if (ftsHeader != null && chmFile != null) {
-                wordBuilder = new WordBuilder(ftsHeader.maxWordLen, chmFile.codec);
+                wordBuilder = new WordBuilder(ftsHeader.maxWordLen, chmFile.encoding);
             }
         } else {
             wordBuilder.wordLength = 0;
@@ -356,7 +356,7 @@ public class ChmIndexSearcher {
             if (bufStrings == null) {
                 topic = null;
             } else {
-                topic = ByteBufferHelper.parseString(bufStrings, chmFile.codec);
+                topic = ByteBufferHelper.parseString(bufStrings, chmFile.encoding);
             }
 
             ByteBuffer bufUrlTable = chmFile.retrieveObject(uiUrlTbl, urlOffset, 12);
@@ -370,7 +370,7 @@ public class ChmIndexSearcher {
             if (bufUrlStr == null) {
                 return;
             }
-            String url = ByteBufferHelper.parseString(bufUrlStr, chmFile.codec);
+            String url = ByteBufferHelper.parseString(bufUrlStr, chmFile.encoding);
             if (url == null) {
                 return;
             }
@@ -451,10 +451,10 @@ public class ChmIndexSearcher {
 
     class SubQuery {
 
-        String queryString;
+        final String queryString;
         // used for multibyte word
         // to ensure the word do exist in the file
-        boolean isNewWord;
+        final boolean isNewWord;
 
         public SubQuery(String queryString, boolean isNewWord) {
             this.queryString = queryString;
@@ -474,13 +474,13 @@ public class ChmIndexSearcher {
     class WordBuilder {
 
         final byte[] wordBuffer;
-        final String codec;
+        final String encoding;
         int wordLength;
 
-        WordBuilder(int maxWordLength, String codec) {
+        WordBuilder(int maxWordLength, String encoding) {
             wordBuffer = new byte[maxWordLength];
             wordLength = 0;
-            this.codec = codec;
+            this.encoding = encoding;
         }
 
         void readWord(ByteBuffer bb) throws IOException {
@@ -541,7 +541,7 @@ public class ChmIndexSearcher {
                 return "";
             }
             try {
-                return new String(wordBuffer, 0, wordLength, codec);
+                return new String(wordBuffer, 0, wordLength, encoding);
             } catch (UnsupportedEncodingException ignored) {
                 return "";
             }

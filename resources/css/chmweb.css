@@ -68,6 +68,7 @@ li > a {
   display: block;
 }
 
+/*noinspection CssUnusedSymbol*/
 li.folder {
   background: url(../img/folderclosed.png) 0 0 no-repeat;
   padding-bottom: 0;
@@ -81,6 +82,7 @@ li.folder > ul {
   display: none;
 }
 
+/*noinspection CssUnusedSymbol*/
 li.folder.on {
   background: url(../img/folderopen.png) 0 0 no-repeat;
 }
@@ -169,6 +171,7 @@ td.file {
   padding-left: 20px;
 }
 
+/*noinspection CssUnusedSymbol*/
 td.folder {
   background: url(../img/folderclosed.png) 0 -2px no-repeat;
   padding-left: 20px;

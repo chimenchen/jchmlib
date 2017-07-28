@@ -7,6 +7,7 @@ import org.jchmlib.util.ByteBufferHelper;
 /**
  * LZXC reset table.
  */
+@SuppressWarnings({"unused", "WeakerAccess"})
 class ChmLzxcResetTable {
 
     final int blockCount;
