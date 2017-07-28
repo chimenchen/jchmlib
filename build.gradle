@@ -76,14 +76,14 @@ jar {
     dependsOn libJar, appJar
 }
 
-// $(/usr/libexec/java_home)/bin/javapackager -deploy -native dmg -srcfiles build/libs/ChmWeb-0.2.jar -appclass org.jchmlib.app.ChmWebApp -name ChmWeb -outdir build/deploy -outfile ChmWeb -v -BappVersion=0.2
-
 task deb(dependsOn: appJar) {
+    description = "build deb for linux"
+    def nativeType = "deb"
     def appName = appJar.baseName
     def jarFile = appJar.outputs.files[0].path
     def deployDir = "${buildDir}/deploy"
 
-    def runtime = ""
+    def runtime = System.getProperty("java.home")
     def expectedJdkDir = "$rootDir/package/linux/jdk"
 
     File testFile = new File(expectedJdkDir);
@@ -100,7 +100,7 @@ task deb(dependsOn: appJar) {
                  "-title", appName,
                  "-name", appName,
                  "-appclass", appMainClass,
-                 "-native", "deb",
+                 "-native", nativeType,
                  "-outdir", deployDir,
                  "-outfile", appName,
                  "-srcfiles", jarFile,
@@ -114,6 +114,45 @@ task deb(dependsOn: appJar) {
     }}
 }
 
+task rpm(dependsOn: appJar) {
+    description = "build rpm for linux"
+    def nativeType = "rpm"
+    def appName = appJar.baseName
+    def jarFile = appJar.outputs.files[0].path
+    def deployDir = "${buildDir}/deploy"
+
+    def runtime = System.getProperty("java.home")
+    def expectedJdkDir = "$rootDir/package/linux/jdk"
+
+    File testFile = new File(expectedJdkDir);
+    if (testFile.exists()) {
+        runtime = expectedJdkDir
+    }
+
+    file(deployDir).mkdirs()
+
+    doLast {
+        exec {
+            executable System.getProperty("java.home")+"/../bin/javapackager"
+            args "-deploy",
+                 "-title", appName,
+                 "-name", appName,
+                 "-appclass", appMainClass,
+                 "-native", nativeType,
+                 "-outdir", deployDir,
+                 "-outfile", appName,
+                 "-srcfiles", jarFile,
+                 "-BappVersion=$version",
+                 "-Bcopyright=Copyright © 2017 chimenchen. All rights reserved.",
+                 "-BlicenseType=Apache License 2.0",
+                 "-srcfiles", "LICENSE",
+                 "-BlicenseFile=LICENSE",
+                 "-Bruntime=$runtime",
+                 "-verbose"
+    }}
+}
+
+
 task dmg(dependsOn: appJar) {
     // NOTE: need to change Info.plist if version or appName is changed.
     def appName = appJar.baseName
@@ -125,7 +164,8 @@ task dmg(dependsOn: appJar) {
 
     File testFile = new File(expectedJdkDir)
     if (testFile.exists()) {
-        runtime = expectedJdkDir
+        // runtime = expectedJdkDir
+        runtime = "-Bruntime=$expectedJdkDir"
     }
 
     file(deployDir).mkdirs()
@@ -141,7 +181,7 @@ task dmg(dependsOn: appJar) {
              "-outfile", appName,
              "-srcfiles", jarFile,
              "-BappVersion=$version",
-             "-Bruntime=$runtime",
+             runtime,
              "-verbose"
     }}
 }
