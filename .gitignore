@@ -32,4 +32,5 @@ chm/
 web/
 package/macosx/tmp/
 package/macosx/jdk/
-
+package/linux/tmp/
+package/linux/jdk/

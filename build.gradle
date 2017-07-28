@@ -83,6 +83,14 @@ task deb(dependsOn: appJar) {
     def jarFile = appJar.outputs.files[0].path
     def deployDir = "${buildDir}/deploy"
 
+    def runtime = ""
+    def expectedJdkDir = "$rootDir/package/linux/jdk"
+
+    File testFile = new File(expectedJdkDir);
+    if (testFile.exists()) {
+        runtime = expectedJdkDir
+    }
+
     file(deployDir).mkdirs()
 
     doLast {
@@ -97,10 +105,11 @@ task deb(dependsOn: appJar) {
                  "-outfile", appName,
                  "-srcfiles", jarFile,
                  "-BappVersion=$version",
-                 "-Bcopyright=Copyright © 2017 Chimen Chen. All rights reserved.",
+                 "-Bcopyright=Copyright © 2017 chimenchen. All rights reserved.",
                  "-BlicenseType=Apache License 2.0",
                  "-srcfiles", "LICENSE",
                  "-BlicenseFile=LICENSE",
+                 "-Bruntime=$runtime",
                  "-verbose"
     }}
 }
