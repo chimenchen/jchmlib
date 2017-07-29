@@ -43,6 +43,9 @@ To build rpm for linux, use
 gradle package_rpm
 ```
 
+On some distributions, you may have to install the `rpmbuild` tool first.
+ On Ubuntu, you can get it by `sudo apt-get install rpm`.
+
 You can also build exe for Windows on other platforms using
 ```
 gradle createExe
@@ -108,14 +111,19 @@ if you have your system properly configured
 
 The problem of using jar directly is that it may not work as expected
 in file managers of some platforms.
-For example, you may want to right click on a CHM file and choose open with ChmWeb,
-or to associate chm file type with ChmWeb so that you can double click to open them in ChmWeb,
+For example, you may want to right click on a CHM file and choose to open with ChmWeb,
+or to associate chm file type with ChmWeb so that you can double click to open CHM files with ChmWeb,
 it is not allowed on some platforms when using jar.
 
 You can wrap the jar using shell scripts or use native executables.
 
-On Mac OS X, you can build DMG and install the app in DMG.
+On Mac OS X, you can build DMG and install the app in DMG (drag to Applications).
 
-On Linux, you can build rpm or deb, and install them.
+On Linux, you can build rpm or deb, and install them using package manager.
+ It will normally be installed to `/opt/ChmWeb/`.
 
-On Windows, you can build exe and 
+On Windows, you can build exe. There is no need to install it.
+  If you are using the exe built using launch4j,
+  you need to have JDK/JRE installed on the target platform.
+
+You can then open CHM files with ChmWeb more easily in file manager.
