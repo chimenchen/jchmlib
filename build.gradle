@@ -22,7 +22,7 @@ dependencies {
 }
 
 
-version = "0.2"
+version = "0.2.0"
 
 sourceSets {
     main {
@@ -76,114 +76,84 @@ jar {
     dependsOn libJar, appJar
 }
 
-task deb(dependsOn: appJar) {
-    description = "build deb for linux"
-    def nativeType = "deb"
-    def appName = appJar.baseName
-    def jarFile = appJar.outputs.files[0].path
-    def deployDir = "${buildDir}/deploy"
+def appName = appJar.baseName
+def appJarFile = appJar.outputs.files[0].path
+def deployDir = "${buildDir}/deploy"
+def runtime = System.getProperty("java.home")
 
-    def runtime = System.getProperty("java.home")
-    def expectedJdkDir = "$rootDir/package/linux/jdk"
+if (System.properties['os.name'].contains("Linux")) {
+    for (nativeType in ["image", "rpm", "deb", "installer"]) {
+        task "package_${nativeType}"(dependsOn: appJar) {
+            group = "distribution"
 
-    File testFile = new File(expectedJdkDir);
-    if (testFile.exists()) {
-        runtime = expectedJdkDir
+            def customRuntime = "$rootDir/package/linux/jdk"
+            File testFile = new File(customRuntime)
+            if (testFile.exists()) {
+                runtime = "-Bruntime=$customRuntime"
+            }
+
+            doLast {
+                file(deployDir).mkdirs()
+                exec {
+                    executable System.getProperty("java.home")+"/../bin/javapackager"
+                    args "-deploy", "-title", appName, "-name", appName, "-appclass", appMainClass,
+                         "-native", nativeType, "-outdir", deployDir, "-outfile", appName,
+                         "-srcfiles", appJarFile, "-Bruntime=$runtime", "-verbose",
+                         "-BappVersion=$version", "-Bcopyright=Copyright © 2017 chimenchen. All rights reserved.",
+                         "-BlicenseType=Apache License 2.0", "-srcfiles", "LICENSE", "-BlicenseFile=LICENSE"
+                }
+            }
+        }
     }
-
-    file(deployDir).mkdirs()
-
-    doLast {
-        exec {
-            executable System.getProperty("java.home")+"/../bin/javapackager"
-            args "-deploy",
-                 "-title", appName,
-                 "-name", appName,
-                 "-appclass", appMainClass,
-                 "-native", nativeType,
-                 "-outdir", deployDir,
-                 "-outfile", appName,
-                 "-srcfiles", jarFile,
-                 "-BappVersion=$version",
-                 "-Bcopyright=Copyright © 2017 chimenchen. All rights reserved.",
-                 "-BlicenseType=Apache License 2.0",
-                 "-srcfiles", "LICENSE",
-                 "-BlicenseFile=LICENSE",
-                 "-Bruntime=$runtime",
-                 "-verbose"
-    }}
 }
 
-task rpm(dependsOn: appJar) {
-    description = "build rpm for linux"
-    def nativeType = "rpm"
-    def appName = appJar.baseName
-    def jarFile = appJar.outputs.files[0].path
-    def deployDir = "${buildDir}/deploy"
+// NOTE: need to change Info.plist if version or appName is changed.
+if (System.properties['os.name'].contains("Mac")) {
+    for (nativeType in ["image", "dmg", "installer"]) {
+        task "package_${nativeType}"(dependsOn: appJar) {
+            group = "distribution"
 
-    def runtime = System.getProperty("java.home")
-    def expectedJdkDir = "$rootDir/package/linux/jdk"
+            def customRuntime = "$rootDir/package/macosx/jdk"
+            File testFile = new File(customRuntime)
+            if (testFile.exists()) {
+                runtime = "-Bruntime=$customRuntime"
+            }
 
-    File testFile = new File(expectedJdkDir);
-    if (testFile.exists()) {
-        runtime = expectedJdkDir
+            doLast {
+                file(deployDir).mkdirs()
+                exec {
+                    executable System.getProperty("java.home")+"/../bin/javapackager"
+                    args "-deploy", "-title", appName, "-name", appName, "-appclass", appMainClass,
+                         "-native", nativeType, "-outdir", deployDir, "-outfile", appName,
+                         "-srcfiles", appJarFile, "-BappVersion=$version", runtime, "-verbose"
+                }
+            }
+        }
     }
-
-    file(deployDir).mkdirs()
-
-    doLast {
-        exec {
-            executable System.getProperty("java.home")+"/../bin/javapackager"
-            args "-deploy",
-                 "-title", appName,
-                 "-name", appName,
-                 "-appclass", appMainClass,
-                 "-native", nativeType,
-                 "-outdir", deployDir,
-                 "-outfile", appName,
-                 "-srcfiles", jarFile,
-                 "-BappVersion=$version",
-                 "-Bcopyright=Copyright © 2017 chimenchen. All rights reserved.",
-                 "-BlicenseType=Apache License 2.0",
-                 "-srcfiles", "LICENSE",
-                 "-BlicenseFile=LICENSE",
-                 "-Bruntime=$runtime",
-                 "-verbose"
-    }}
 }
 
+if (System.properties['os.name'].contains("Windows")) {
+    for (nativeType in ["image", "exe", "msi", "installer"]) {
+        task "package_${nativeType}"(dependsOn: appJar) {
+            group = "distribution"
 
-task dmg(dependsOn: appJar) {
-    // NOTE: need to change Info.plist if version or appName is changed.
-    def appName = appJar.baseName
-    def jarFile = appJar.outputs.files[0].path
-    def deployDir = "${buildDir}/deploy"
+            def customRuntime = "$rootDir/package/windows/jdk"
+            File testFile = new File(customRuntime)
+            if (testFile.exists()) {
+                runtime = "-Bruntime=$customRuntime"
+            }
 
-    def runtime = ""
-    def expectedJdkDir = "$rootDir/package/macosx/jdk"
-
-    File testFile = new File(expectedJdkDir)
-    if (testFile.exists()) {
-        // runtime = expectedJdkDir
-        runtime = "-Bruntime=$expectedJdkDir"
+            doLast {
+                file(deployDir).mkdirs()
+                exec {
+                    executable System.getProperty("java.home")+"/../bin/javapackager"
+                    args "-deploy", "-title", appName, "-name", appName, "-appclass", appMainClass,
+                         "-native", nativeType, "-outdir", deployDir, "-outfile", appName,
+                         "-srcfiles", jarFile, "-BappVersion=$version", runtime, "-verbose"
+                }
+            }
+        }
     }
-
-    file(deployDir).mkdirs()
-
-    doLast { exec {
-        executable System.getProperty("java.home")+"/../bin/javapackager"
-        args "-deploy",
-             "-title", appName,
-             "-name", appName,
-             "-appclass", appMainClass,
-             "-native", "dmg",
-             "-outdir", deployDir,
-             "-outfile", appName,
-             "-srcfiles", jarFile,
-             "-BappVersion=$version",
-             runtime,
-             "-verbose"
-    }}
 }
 
 launch4j {
