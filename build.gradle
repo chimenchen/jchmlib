@@ -41,6 +41,12 @@ compileJava {
 
 def appMainClass = "org.jchmlib.app.ChmWebApp"
 
+javadoc {
+    exclude "org/jchmlib/app/**"
+    options.locale = "en_US"
+    options.encoding = "UTF-8"
+}
+
 task appJar(type: Jar) {
     baseName = "ChmWeb"
 
@@ -89,7 +95,7 @@ if (System.properties['os.name'].contains("Linux")) {
             def customRuntime = "$rootDir/package/linux/jdk"
             File testFile = new File(customRuntime)
             if (testFile.exists()) {
-                runtime = "-Bruntime=$customRuntime"
+                runtime = customRuntime
             }
 
             doLast {
@@ -116,7 +122,7 @@ if (System.properties['os.name'].contains("Mac")) {
             def customRuntime = "$rootDir/package/macosx/jdk"
             File testFile = new File(customRuntime)
             if (testFile.exists()) {
-                runtime = "-Bruntime=$customRuntime"
+                runtime = customRuntime
             }
 
             doLast {
@@ -125,7 +131,7 @@ if (System.properties['os.name'].contains("Mac")) {
                     executable System.getProperty("java.home")+"/../bin/javapackager"
                     args "-deploy", "-title", appName, "-name", appName, "-appclass", appMainClass,
                          "-native", nativeType, "-outdir", deployDir, "-outfile", appName,
-                         "-srcfiles", appJarFile, "-BappVersion=$version", runtime, "-verbose"
+                         "-srcfiles", appJarFile, "-BappVersion=$version", "-Bruntime=$runtime", "-verbose"
                 }
             }
         }
@@ -140,7 +146,7 @@ if (System.properties['os.name'].contains("Windows")) {
             def customRuntime = "$rootDir/package/windows/jdk"
             File testFile = new File(customRuntime)
             if (testFile.exists()) {
-                runtime = "-Bruntime=$customRuntime"
+                runtime = customRuntime
             }
 
             doLast {
@@ -149,7 +155,7 @@ if (System.properties['os.name'].contains("Windows")) {
                     executable System.getProperty("java.home")+"/../bin/javapackager"
                     args "-deploy", "-title", appName, "-name", appName, "-appclass", appMainClass,
                          "-native", nativeType, "-outdir", deployDir, "-outfile", appName,
-                         "-srcfiles", jarFile, "-BappVersion=$version", runtime, "-verbose"
+                         "-srcfiles", appJarFile, "-BappVersion=$version", "-Bruntime=$runtime", "-verbose"
                 }
             }
         }

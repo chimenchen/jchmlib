@@ -1,4 +1,4 @@
-package org.jchmlib.util;
+package org.jchmlib;
 
 @SuppressWarnings({"unused", "WeakerAccess"})
 class EncodingTable {
@@ -22,7 +22,7 @@ class EncodingTable {
     }
 }
 
-public class EncodingHelper {
+class EncodingHelper {
 
     private static final EncodingTable[] encodingTable = new EncodingTable[]{
             new EncodingTable("Afrikaans", "", 0x0436, 1252, 0, "CP1252"),

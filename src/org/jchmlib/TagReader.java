@@ -1,10 +1,10 @@
-package org.jchmlib.util;
+package org.jchmlib;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 
-public class TagReader {
+class TagReader {
 
     private final HashMap<String, Integer> tagLevels;
     private final ByteBuffer data;

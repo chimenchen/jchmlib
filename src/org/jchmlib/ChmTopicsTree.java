@@ -8,14 +8,9 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
-import org.jchmlib.util.Tag;
-import org.jchmlib.util.TagReader;
 
 /**
  * A ChmTopicsTree object contains the topics in a .chm archive.
- * <p>
- *
- * @author Chimen Chen
  */
 public final class ChmTopicsTree {
 
@@ -52,8 +47,9 @@ public final class ChmTopicsTree {
      *
      * @param buf content
      * @param encoding the encoding of buf
+     * @return the topics tree
      */
-    public static ChmTopicsTree buildTopicsTree(ByteBuffer buf,
+    static ChmTopicsTree buildTopicsTree(ByteBuffer buf,
             String encoding) {
         ChmTopicsTree tree = new ChmTopicsTree();
         tree.pathToTitle = new LinkedHashMap<String, String>();

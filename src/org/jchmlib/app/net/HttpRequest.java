@@ -114,7 +114,7 @@ public class HttpRequest {
 
     /**
      * Returns the value of a request parameter as a
-     * <code>String</code>, or <code>null</code> if the parameter
+     * {@code String}, or <code>null</code> if the parameter
      * does not exist.
      */
     public String getParameter(String name) {

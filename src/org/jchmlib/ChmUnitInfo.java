@@ -6,7 +6,6 @@ package org.jchmlib;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import org.jchmlib.util.ByteBufferHelper;
 
 /**
  * ChmUnitInfo represents an object in a CHM archive.
@@ -34,7 +33,7 @@ public class ChmUnitInfo {
         flags = ChmFile.CHM_ENUMERATE_DIRS | ChmFile.CHM_ENUMERATE_NORMAL;
     }
 
-    public ChmUnitInfo(ByteBuffer bb) throws IOException {
+    ChmUnitInfo(ByteBuffer bb) throws IOException {
         try {
             // parse str len
             int strLen = (int) ByteBufferHelper.parseCWord(bb);

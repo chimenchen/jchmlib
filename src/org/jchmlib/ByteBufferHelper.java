@@ -2,7 +2,7 @@
  * Copyright 2017 chimenchen. All rights reserved.
  */
 
-package org.jchmlib.util;
+package org.jchmlib;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -13,7 +13,7 @@ import java.util.logging.Logger;
 /**
  * ByteBufferHelper provides some ByteBuffer-relating methods.
  */
-public class ByteBufferHelper {
+class ByteBufferHelper {
 
     private static final Logger LOG = Logger.getLogger(ByteBufferHelper.class.getName());
 
@@ -102,7 +102,7 @@ public class ByteBufferHelper {
         return bytesToString(bytes, 0, bytes.length, encoding);
     }
 
-    public static String bytesToString(byte[] bytes, int offset,
+    private static String bytesToString(byte[] bytes, int offset,
             int length, String encoding) {
         String result;
         try {

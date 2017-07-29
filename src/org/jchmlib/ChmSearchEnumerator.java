@@ -9,16 +9,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.jchmlib.util.ByteBufferHelper;
 
 /**
  * ChmSearchEnumerator uses regular expression to check whether the
  * content of a given CHM unit matches a query string.<p>
- * <p>
+ *
  * The query string may contains one or more keywords, separated
  * by whitespaces. The keyword can itself be a regular expression
  * and can be quoted as well.<p>
- * <p>
+ *
  * Here are some typical query strings:
  * <pre> abc
  * abc abc

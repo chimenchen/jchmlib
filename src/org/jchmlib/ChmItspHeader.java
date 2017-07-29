@@ -2,7 +2,6 @@ package org.jchmlib;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import org.jchmlib.util.ByteBufferHelper;
 
 /**
  * Directory header

@@ -4,12 +4,12 @@
 
 package org.jchmlib.app.net;
 
+import java.io.UnsupportedEncodingException;
 import java.util.logging.Logger;
-import org.jchmlib.util.ByteBufferHelper;
 
 /**
  * Utility class for HTML form decoding. This class contains static methods for
- * decoding a String from the <CODE>application/x-www-form-urlencoded</CODE>
+ * decoding a String from the {@code application/x-www-form-urlencoded}
  * MIME format.
  */
 class UDecoder {
@@ -94,7 +94,16 @@ class UDecoder {
         if (!needToChange) {
             return s;
         }
-        return ByteBufferHelper.bytesToString(bytes, 0, totalBytes, enc);
+        return bytesToString(bytes, 0, totalBytes, enc);
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static String bytesToString(byte[] bytes, int offset, int length, String encoding) {
+        try {
+            return new String(bytes, offset, length, encoding);
+        } catch (UnsupportedEncodingException ignored) {
+            return new String(bytes, offset, length);
+        }
     }
 
     private static byte charAsByte(char c) {

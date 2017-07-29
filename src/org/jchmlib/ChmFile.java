@@ -12,15 +12,10 @@ import java.nio.channels.FileChannel;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.logging.Logger;
-import org.jchmlib.util.ByteBufferHelper;
-import org.jchmlib.util.EncodingHelper;
-import org.jchmlib.util.LZXInflator;
 
 /**
  * ChmFile is a class for dealing with Microsoft CHM format files
  * (also known as Html Help files).
- *
- * @author Chimen Chen
  */
 
 public class ChmFile {
@@ -84,34 +79,12 @@ public class ChmFile {
     // LinkedHashMap, since we want it to remember the order
     // mappings are inserted.
     private final HashMap<String, ChmUnitInfo> dirMap = new LinkedHashMap<String, ChmUnitInfo>();
-    /**
-     * The character encoding of this .chm archive
-     */
     String encoding = "UTF-8";
-    /**
-     * The language codepage ID of this .chm archive
-     */
     private int detectedLCID = -1;
-    /**
-     * Path of the main file (default file to show on startup).
-     */
     private String homeFile;
-    /**
-     * .hhc file which gives a topic tree
-     */
     private String topicsFile;
-    /**
-     * .hhk file which gives a index tree
-     */
     private String indexFile;
-    /**
-     * The title of this .chm archive
-     */
     private String title;
-    /**
-     * The generator of this .chm archive.
-     * Normally, it would be HHA Version 4.74.8702.
-     */
     private String generator;
     private RandomAccessFile rf;
     private int langIDInItsfHeader;
@@ -158,6 +131,9 @@ public class ChmFile {
 
     /**
      * Prints the ChmTopicsTree of this .chm archive.
+     *
+     * @param tree the topics tree returned by buildTopicsTree.
+     * @param level the level of tree, starts from 0, used for indentation.
      */
     public static void printTopicsTree(ChmTopicsTree tree, int level) {
         if (tree == null) {
@@ -191,33 +167,54 @@ public class ChmFile {
         }
     }
 
+    /**
+     * @return Path of the main file (default file to show on startup).
+     */
     public String getHomeFile() {
         return homeFile;
     }
 
+    /**
+     * @return .hhc file which gives a topic tree
+     */
     @SuppressWarnings("unused")
     public String getTopicsFile() {
         return topicsFile;
     }
 
+    /**
+     * @return .hhk file which gives a index tree
+     */
     @SuppressWarnings("unused")
     public String getIndexFile() {
         return indexFile;
     }
 
+    /**
+     * @return The title of this .chm archive
+     */
     public String getTitle() {
         return title;
     }
 
+    /**
+     * @return The generator of this .chm archive. Normally, it would be HHA Version 4.74.8702.
+     */
     @SuppressWarnings("unused")
     public String getGenerator() {
         return generator;
     }
 
+    /**
+     * @return The character encoding of this .chm archive
+     */
     public String getEncoding() {
         return encoding;
     }
 
+    /**
+     * @return The language codepage ID of this .chm archive
+     */
     @SuppressWarnings("unused")
     public int getDetectedLCID() {
         return detectedLCID;
@@ -450,6 +447,7 @@ public class ChmFile {
      *
      * @param objPath the path of the object. It can be "::DataSpace/Storage/MSCompressed/SpanInfo"
      * "/index.html" or "/files/", etc.
+     * @return the CHM unit info matching the path, or null if not found.
      */
     public ChmUnitInfo resolveObject(String objPath) {
         if (dirMap != null && objPath != null && dirMap.containsKey(objPath.toLowerCase())) {
@@ -462,6 +460,8 @@ public class ChmFile {
      * Retrieve an object.
      *
      * @param ui an abstract representation of the object.
+     * @return a ByteBuffer holding the content of the object,
+     * or null if ui is invalid or there is error when retrieving the object.
      */
     public ByteBuffer retrieveObject(ChmUnitInfo ui) {
         return retrieveObject(ui, 0, ui.length);
@@ -473,6 +473,9 @@ public class ChmFile {
      * @param ui an abstract representation of the object.
      * @param addr starting address(relative to start of the object)
      * @param len length(in bytes) to be retrieved.
+     *
+     * @return a ByteBuffer holding (part of) the content of the object,
+     * or null if ui is invalid or there is error when retrieving the object.
      */
     public ByteBuffer retrieveObject(ChmUnitInfo ui, long addr, long len) {
 
@@ -698,6 +701,8 @@ public class ChmFile {
 
     /**
      * Retrieves the ChmTopicsTree of this .chm archive.
+     *
+     * @return a topics tree
      */
     public ChmTopicsTree getTopicsTree() {
         if (tree != null) {
@@ -719,9 +724,11 @@ public class ChmFile {
     }
 
     /**
-     * Gets the title of a given path.
+     * Gets the title of a given path from topics tree.
      *
      * @param path path of a Chm object (namely, a chm unit).
+     * @return the title of the Chm object,
+     * or return the path if no topic found for the object.
      */
     public String getTitleOfObject(String path) {
         if (tree == null) {
@@ -731,12 +738,17 @@ public class ChmFile {
             }
         }
         String objectTitle = tree.getTitle(path, path);
-        releaseLargeTopicsTree();
+        releaseLargeTopicsTree(false);
         return objectTitle;
     }
 
-    public void releaseLargeTopicsTree() {
-        if (tree != null && tree.children != null && tree.children.size() > 200) {
+    /**
+     * Some files have large topics tree.
+     * You can release it once it is no longer needed.
+     * @param forceRelease release it even when the topics tree is not large.
+     */
+    public void releaseLargeTopicsTree(boolean forceRelease) {
+        if (forceRelease || (tree != null && tree.children != null && tree.children.size() > 200)) {
             tree = null;
         }
     }
@@ -748,6 +760,7 @@ public class ChmFile {
      * @param text keyword.
      * @param wholeWords if false, matches indices that starts with text.
      * @param titlesOnly if true, search titles only;
+     * @return a hash map from url to title.
      */
     @SuppressWarnings("SameParameterValue")
     public HashMap<String, String> indexSearch(
@@ -760,7 +773,6 @@ public class ChmFile {
     public ChmIndexSearcher getIndexSearcher() {
         if (indexSearcher == null) {
             indexSearcher = new ChmIndexSearcher(this);
-            indexSearcher.search("jchmlib", true, true);
         }
         return indexSearcher;
     }

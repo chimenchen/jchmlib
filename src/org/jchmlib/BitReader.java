@@ -1,8 +1,8 @@
-package org.jchmlib.util;
+package org.jchmlib;
 
 import java.nio.ByteBuffer;
 
-public class BitReader {
+class BitReader {
 
     long bitBuffer;
     int bitsBuffered;

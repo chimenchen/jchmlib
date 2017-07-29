@@ -1,8 +1,8 @@
-package org.jchmlib.util;
+package org.jchmlib;
 
 import java.util.HashMap;
 
-public class Tag {
+class Tag {
 
     // --Commented out by Inspection (17/7/28 13:23):public int totalLevel;
     public final HashMap<String, String> elements = new HashMap<String, String>();

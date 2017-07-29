@@ -5,9 +5,9 @@
 package org.jchmlib;
 
 /**
- * ChmEnumerator is a <i>visitor</i> of <code>ChmFile</code>.
+ * ChmEnumerator is a <i>visitor</i> of {@code ChmFile}.
  * <p>
- * Used by the following functions of <code>ChmFile</code>:
+ * Used by the following functions of {@code ChmFile}:
  * <pre>
  * enumerateDir(String prefix, int what, ChmEnumerator e)
  * enumerate(int what, ChmEnumerator e)
@@ -20,6 +20,9 @@ public interface ChmEnumerator {
 
     /**
      * Does something on the ChmUnitInfo.
+     *
+     * @param ui a CHM unit matching the enumeration type.
+     * @throws ChmStopEnumeration throw it to end enumeration.
      */
     void enumerate(ChmUnitInfo ui) throws ChmStopEnumeration;
 }

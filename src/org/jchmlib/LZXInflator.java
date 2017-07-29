@@ -1,4 +1,4 @@
-package org.jchmlib.util;
+package org.jchmlib;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -6,6 +6,7 @@ import java.nio.ByteOrder;
 /**
  * A decompressor for LZX format
  */
+@SuppressWarnings("WeakerAccess")
 public class LZXInflator {
 
     /* some constants defined by the LZX specification */
@@ -108,6 +109,9 @@ public class LZXInflator {
         reset();
     }
 
+    /**
+     * reset an LZX stream.
+     */
     public void reset() {
         R0 = 1;
         R1 = 1;

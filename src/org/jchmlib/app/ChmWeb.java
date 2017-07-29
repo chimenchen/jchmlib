@@ -378,7 +378,7 @@ class ClientHandler extends Thread {
     private void deliverTopicsTree() {
         response.sendHeader("application/json");
         printTopicsTree(chmFile.getTopicsTree(), 0);
-        chmFile.releaseLargeTopicsTree();
+        chmFile.releaseLargeTopicsTree(false);
     }
 
     private void printTopicsTree(ChmTopicsTree tree, int level) {

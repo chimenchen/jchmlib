@@ -14,15 +14,29 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.logging.Logger;
-import org.jchmlib.util.BitReader;
-import org.jchmlib.util.ByteBufferHelper;
 
-
+/**
+ * Search a CHM file using its built-in full-text-search index.
+ * <pre>
+ * <code>
+ * ChmFile chmFile = new ChmFile("test.chm");
+ * ChmIndexSearcher searcher = chmFile.getIndexSearcher();
+ * if (!searcher.notSearchable) {
+ *     searcher.search("hello", true, true);
+ *     HashMap&lt;String, String&gt; results = searcher.getResults();
+ *     ...
+ * }
+ * </code>
+ * </pre>
+ */
 public class ChmIndexSearcher {
 
     private static final Logger LOG = Logger.getLogger(ChmIndexSearcher.class.getName());
 
     private final ChmFile chmFile;
+    /**
+     * not searchable when this CHM files has built-in full-text-search index.
+     */
     public boolean notSearchable = false;
     private ChmUnitInfo uiMain;
     private ChmUnitInfo uiTopics;
@@ -37,8 +51,16 @@ public class ChmIndexSearcher {
 
     public ChmIndexSearcher(ChmFile chmFile) {
         this.chmFile = chmFile;
+        // so as to set notSearchable
+        search("jchmlib", true, true);
     }
 
+    /**
+     * Get search results mathing the query.
+     *
+     * @return a hash map from url to title, or null if the CHM file is has no built-in index
+     * ({@code notSearchable == false}) or there is no result found.
+     */
     public HashMap<String, String> getResults() {
         if (results == null || results.size() == 0) {
             return null;
@@ -104,6 +126,15 @@ public class ChmIndexSearcher {
     // to solve this problem, each multibyte char is made a sub-query.
     // that is, we search each multibyte char and combine the results.
 
+    /**
+     * @param query one or more words to search in CHM units/objects. CHM units matching the query
+     * should include all the words. words are separated by whitespaces.
+     * @param wholeWords if true, only consider keywords in builtin index that match a query word
+     * exactly. it doesn't apply for CJK query words, since CJK keyword is normally one CJK
+     * character. the search can handle CJK query word by searching each CJK character and checking
+     * the locations in CHM units.
+     * @param titlesOnly search in titles only
+     */
     public void search(String query, boolean wholeWords, boolean titlesOnly) {
         results = null;
         if (notSearchable || query == null || query.equals("")) {
