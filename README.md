@@ -16,15 +16,13 @@ This project uses [Gradle](https://gradle.org/) as the build tool.
 
 To build jar for `jchmlib` itself, run
 ```
-gradle libJar
+gradle jar
 ```
 
 To build jar for `ChmWeb`, run
 ```
 gradle appJar
 ```
-
-Use `gradle jar` to build both of them.
 
 Use `gradle javadoc` to build javadoc for `jchmlib`,
 the docs can be found under `build/docs/javadoc`.
@@ -67,7 +65,7 @@ To use `jchmlib` in your project, you can add this to your `build.gradle`
         maven { url "https://jitpack.io" }
    }
    dependencies {
-         compile 'com.github.chimenchen:jchmlib:v0.5.0'
+         compile 'com.github.chimenchen:jchmlib:v0.5.3'
    }
 ```
 
@@ -81,7 +79,7 @@ You need to have JDK/JRE installed.
 
 You can start it from command line like:
 ```
-java -jar ChmWeb-0.5.0.jar
+java -jar ChmWeb.jar
 ```
 This will open a swing window.
 You can drag and drop CHM files into the window to open them,
@@ -97,7 +95,7 @@ To close CHM files, right click and choose "Close".
 
 When you run
 ```
-java -jar ChmWeb-0.5.0.jar test.chm
+java -jar ChmWeb.jar test.chm
 ```
 
 it will start with the CHM file open.
@@ -106,13 +104,13 @@ the file will be opened in that instance instead.
 
 To open the file on a given port, say, 9000, run
 ```
-java -jar ChmWeb-0.5.0.jar -p 9000 test.chm
+java -jar ChmWeb.jar -p 9000 test.chm
 ```
 
 To open the file without showing the window,
  run with the `--no-gui` or `-n` option, like:
 ```
-java -jar ChmWeb-0.5.0.jar -n test.chm
+java -jar ChmWeb.jar -n test.chm
 ```
 
 You can also double click the jar to open `ChmWeb`,
