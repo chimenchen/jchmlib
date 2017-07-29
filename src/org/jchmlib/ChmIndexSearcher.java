@@ -56,7 +56,7 @@ public class ChmIndexSearcher {
     }
 
     /**
-     * Get search results mathing the query.
+     * Get search results matching the query.
      *
      * @return a hash map from url to title, or null if the CHM file is has no built-in index
      * ({@code notSearchable == false}) or there is no result found.

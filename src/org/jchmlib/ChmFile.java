@@ -747,6 +747,7 @@ public class ChmFile {
      * You can release it once it is no longer needed.
      * @param forceRelease release it even when the topics tree is not large.
      */
+    @SuppressWarnings("SameParameterValue")
     public void releaseLargeTopicsTree(boolean forceRelease) {
         if (forceRelease || (tree != null && tree.children != null && tree.children.size() > 200)) {
             tree = null;

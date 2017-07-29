@@ -169,7 +169,7 @@ launch4j {
   jar = appJar.outputs.files[0].path
   outfile = appJar.baseName + ".exe"
   productName = appJar.baseName
-  version = "0.2"
+  version = project.version
   fileDescription = "A web server for viewing CHM files in web browser"
 }
 
