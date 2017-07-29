@@ -59,6 +59,18 @@ You can change the launch4j task in build.gradle to bundle JRE as well.
 
 You can start by reading javadoc, and sample applications under `org.jchmlib.app`.
 
+To use `jchmlib` in your project, you can add this to your `build.gradle` 
+(when you are using Gradle):
+```
+    repositories {
+        jcenter()
+        maven { url "https://jitpack.io" }
+   }
+   dependencies {
+         compile 'com.github.chimenchen:jchmlib:v0.5.0'
+   }
+```
+
 # `ChmWeb` usage
 
 You can run `ChmWeb` in different ways.
