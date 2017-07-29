@@ -21,7 +21,7 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.2</string>
+    <string>0.5.0</string>
     <key>CFBundleSignature</key>
     <string>????</string>
   <!-- See http://developer.apple.com/library/mac/#releasenotes/General/SubmittingToMacAppStore/_index.html
@@ -33,13 +33,13 @@
     <key>NSHumanReadableCopyright</key>
     <string>Copyright (C) 2017 chimenchen</string>
     <key>JVMRuntime</key>
-    <string>jdk1.8.0_20.jdk</string>
+    <string>jdk</string>
     <key>JVMMainClassName</key>
     <string>org.jchmlib.app.ChmWebApp</string>
     <key>JVMAppClasspath</key>
     <string></string>
     <key>JVMMainJarName</key>
-    <string>ChmWeb-0.2.jar</string>
+    <string>ChmWeb-0.5.0.jar</string>
     <key>JVMPreferencesID</key>
     <string>org/jchmlib/app</string>
     <key>JVMOptions</key>

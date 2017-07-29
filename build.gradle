@@ -22,7 +22,7 @@ dependencies {
 }
 
 
-version = "0.2.0"
+version = "0.5.0"
 
 sourceSets {
     main {
@@ -113,7 +113,8 @@ if (System.properties['os.name'].contains("Linux")) {
     }
 }
 
-// NOTE: need to change Info.plist if version or appName is changed.
+// NOTE: need to change Info.plist if version/appName/jdk is changed.
+// FIXME: generate Info.plist?
 if (System.properties['os.name'].contains("Mac")) {
     for (nativeType in ["image", "dmg", "installer"]) {
         task "package_${nativeType}"(dependsOn: appJar) {
