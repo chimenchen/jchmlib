@@ -36,13 +36,25 @@ gradle package_dmg
 Please make sure `package/macosx/Info.plist` matches you settings (like JVMRuntime).
 The dmg can be found under `build/deploy/bundles`.
 
-To build rpm for linux, use
+On Linux, build rpm using
 ```
 gradle package_rpm
 ```
 
 On some distributions, you may have to install the `rpmbuild` tool first.
  On Ubuntu, you can get it by `sudo apt-get install rpm`.
+
+On Linux, build deb using
+```
+gradle package_deb
+```
+
+On Windows, build exe using
+```
+gradle package_exe
+```
+
+This will build a installer for installing `ChmWeb`.
 
 You can also build exe for Windows on other platforms using
 ```
@@ -125,15 +137,18 @@ For example, you may want to right click on a CHM file and choose to open with C
 or to associate chm file type with ChmWeb so that you can double click to open CHM files with ChmWeb,
 it is not allowed on some platforms when using jar.
 
-You can wrap the jar using shell scripts or use native executables.
+To make it easier to open CHM files with ChmWeb in file manager,
+you can wrap the jar using shell scripts or use native executables.
 
 On Mac OS X, you can build DMG and install the app in DMG (drag to Applications).
 
 On Linux, you can build rpm or deb, and install them using package manager.
  It will normally be installed to `/opt/ChmWeb/`.
 
-On Windows, you can build exe. There is no need to install it.
-  If you are using the exe built using launch4j,
-  you need to have JDK/JRE installed on the target platform.
+On Windows, you can build exe.
+The version built using javapackager (`gradle package_exe`) has to be installed first.
+The version built using launch4j (`gradle createExe`) is smaller and doesn't have to be installed,
+but it requires JDK/JRE to be installed.
 
-You can then open CHM files with ChmWeb more easily in file manager.
+The native executables (installers) can now be found in the release page of this project.
+

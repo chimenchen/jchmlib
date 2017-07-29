@@ -140,7 +140,10 @@ if (System.properties['os.name'].contains("Windows")) {
                     executable System.getProperty("java.home")+"/../bin/javapackager"
                     args "-deploy", "-title", appName, "-name", appName, "-appclass", appMainClass,
                          "-native", nativeType, "-outdir", deployDir, "-outfile", appName,
-                         "-srcfiles", appJarFile, "-BappVersion=$version", "-Bruntime=$runtime", "-verbose"
+                         "-srcfiles", appJarFile, "-BappVersion=$version", "-Bruntime=$runtime",
+                         "-BmenuHint=true", "-Bwin.menuGroup=$appName", "-BshortcutHint=true",
+                         "-BsystemWide=true", "-Bvendor=$appName",
+                         "-verbose"
                 }
             }
         }
