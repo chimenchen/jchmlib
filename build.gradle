@@ -86,13 +86,29 @@ task libJar(type: Jar) {
     }
 }
 
-artifacts {
-    archives libJar
+jar {
+    // actions = [] // reset actions
+    // dependsOn libJar, appJar
+
+    manifest {
+        attributes(
+                "Implementation-Title": "jchmlib",
+                "Implementation-Version": version)
+    }
+
+    from("LICENSE")
+    from(sourceSets.main.output) {
+        exclude "org/jchmlib/app/**"
+    }
 }
 
-jar {
-    actions = [] // reset actions
-    dependsOn libJar, appJar
+install {
+    repositories.mavenInstaller {
+        pom.project {
+            name 'The Apache Software License, Version 2.0'
+            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+        }
+    }
 }
 
 def appName = appJar.baseName
