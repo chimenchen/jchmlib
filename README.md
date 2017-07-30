@@ -6,18 +6,19 @@ Several CHM utilities are provided,
 including a web server (`ChmWeb`) for reading CHM files in web browsers.
 
 Features:
-* The `jchmlib` is written using only Java, rather than wrapping existing C/C++ library.
+* The `jchmlib` is written in Java only, rather than wrapping existing C/C++ library.
   It is easier to get it working on different platforms.
 * Full-text-search (FTS) support if there is the built-in FTS index in CHM file,
   or fallback to enumeration-based-search by searching through the pages in CHM file if there is no FTS index.
 * Better support for non-English languages, like Chinese, Japanese, Korean.
-  *  It will detect CHM file encoding and even when the encoding is wrongly set in CHM file.
+  *  It will detect CHM file encoding, and can try to fix encoding when it is wrong set in CHM file.
   *  It can show table of contents (topics tree) correctly for non-English files.
   *  It can also search using non-English search words in non-English files.
 * The `ChmWeb` is a web server for serving CHM files, so that you can read CHM files in your favorite web browser.
   * The sidebar of the web UI shows table of contents, files tree (for listing files/directories in the CHM archive),
   and search box. 
   * It uses javascript so that switching between tabs of the sidebar would not incur reloading the whole sidebar.
+  * When network is properly configured, you can run `ChmWeb` on a server, and access it from other devices.
 * There are also some utility classes which you can use as command line tools for handling CHM files,
   like listing/searching/extracting files in CHM file (see `src/app`).  
 
@@ -135,10 +136,12 @@ it will start with the CHM file open.
 Note that, if there is already one instance running,
 the file will be opened in that instance instead.
 
-To open the file on a given port, say, 9000, run
+`ChmWeb` will try to find free ports starting from 50000 to serve CHM files,
+to open a file on a given port, say, 9000, run
 ```
 java -jar ChmWeb.jar -p 9000 test.chm
 ```
+But this port will only be used for this file.
 
 To open the file without showing the window,
  run with the `--no-gui` or `-n` option, like:
