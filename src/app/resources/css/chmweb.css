@@ -11,7 +11,7 @@ div.tab {
 }
 
 div.tab .button {
-  display: inline;
+  /*display: inline;*/
   background-color: inherit;
   float: left;
   border: none;
