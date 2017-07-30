@@ -5,6 +5,22 @@
 Several CHM utilities are provided, 
 including a web server (`ChmWeb`) for reading CHM files in web browsers.
 
+Features:
+* The `jchmlib` is written using only Java, rather than wrapping existing C/C++ library.
+  It is easier to get it working on different platforms.
+* Full-text-search (FTS) support if there is the built-in FTS index in CHM file,
+  or fallback to enumeration-based-search by searching through the pages in CHM file if there is no FTS index.
+* Better support for non-English languages, like Chinese, Japanese, Korean.
+  *  It will detect CHM file encoding and even when the encoding is wrongly set in CHM file.
+  *  It can show table of contents (topics tree) correctly for non-English files.
+  *  It can also search using non-English search words in non-English files.
+* The `ChmWeb` is a web server for serving CHM files, so that you can read CHM files in your favorite web browser.
+  * The sidebar of the web UI shows table of contents, files tree (for listing files/directories in the CHM archive),
+  and search box. 
+  * It uses javascript so that switching between tabs of the sidebar would not incur reloading the whole sidebar.
+* There are also some utility classes which you can use as command line tools for handling CHM files,
+  like listing/searching/extracting files in CHM file (see `src/app`).  
+
 # How to build
 
 This project uses [Gradle](https://gradle.org/) as the build tool.
@@ -14,26 +30,31 @@ This project uses [Gradle](https://gradle.org/) as the build tool.
  
 `jchmlib` itself is supposed to be compatible with JDK 1.6 or higher (including OpenJDK).
 
+## Building `jchmlib`
+
 To build jar for `jchmlib` itself, run
 ```
 gradle jar
 ```
+
+Use `gradle javadoc` to build javadoc for `jchmlib`,
+the docs can be found under `build/docs/javadoc`.
+
+## Building `ChmWeb`
 
 To build jar for `ChmWeb`, run
 ```
 gradle appJar
 ```
 
-Use `gradle javadoc` to build javadoc for `jchmlib`,
-the docs can be found under `build/docs/javadoc`.
-
 Native bundles have to be build on their target platforms.
-For example, on Mac OS X, build dmg using
+
+On Mac OS X, build dmg using
 ```
 gradle package_dmg
 ```
 
-Please make sure `package/macosx/Info.plist` matches you settings (like JVMRuntime).
+Please make sure `package/macosx/Info.plist` matches your settings (like version, JVMRuntime).
 The dmg can be found under `build/deploy/bundles`.
 
 On Linux, build rpm using
@@ -41,7 +62,7 @@ On Linux, build rpm using
 gradle package_rpm
 ```
 
-On some distributions, you may have to install the `rpmbuild` tool first.
+On some Linux distributions, you may have to install the `rpmbuild` tool first.
  On Ubuntu, you can get it by `sudo apt-get install rpm`.
 
 On Linux, build deb using
@@ -150,5 +171,5 @@ The version built using javapackager (`gradle package_exe`) has to be installed 
 The version built using launch4j (`gradle createExe`) is smaller and doesn't have to be installed,
 but it requires JDK/JRE to be installed.
 
-The native executables (installers) can now be found in the release page of this project.
+The native executables (installers) can now be found in the [releases page](https://github.com/chimenchen/jchmlib/releases) of this project.
 
