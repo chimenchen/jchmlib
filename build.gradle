@@ -155,8 +155,8 @@ launch4j {
   version = project.version
   icon = "${project.rootDir}/package/windows/${appJar.baseName}.ico"
   jar = appJar.outputs.files[0].path
+  copyConfigurable = project.tasks.appJar.outputs.files
   outfile = "${appJar.baseName}-${version}.exe"
   productName = appJar.baseName
   fileDescription = "A web server for viewing CHM files in web browser"
 }
-
