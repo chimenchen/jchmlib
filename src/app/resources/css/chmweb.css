@@ -17,7 +17,7 @@ div.tab .button {
   border: none;
   outline: none;
   cursor: pointer;
-  padding: 0 10px;
+  padding: 0 5px;
   transition: 0.3s;
   height: 30px;
   line-height: 30px;
@@ -47,6 +47,11 @@ body, form, ul, li, p, h1, h2, h3, h4, h5 {
   padding: 0;
 }
 
+.loading {
+  background: url(../img/loading.gif) 0 0 no-repeat;
+  height: 32px;
+}
+
 ul.tree {
   padding: 0 0 30px;
 }
@@ -63,7 +68,8 @@ li {
 }
 
 li > a {
-  padding: 5px 5px 3px 5px;
+  line-height: 16px;
+  padding: 1px 5px 1px 5px;
   margin-left: 15px;
   display: block;
 }
@@ -93,6 +99,9 @@ li.folder.on > ul {
 
 #search-form {
   position: relative;
+  padding-bottom: 5px;
+  margin-bottom: 5px;
+  border-bottom: 1px solid #ccc;
 }
 
 #search-form input[name="query"] {
@@ -139,6 +148,10 @@ li.folder.on > ul {
 
 #search-results li > a {
   margin-left: 0;
+}
+
+#toggle-highlight[data-toggle="on"] {
+  background-color: yellow;
 }
 
 h1 {

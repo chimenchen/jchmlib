@@ -361,18 +361,29 @@ class ClientHandler extends Thread {
     private void deliverMain() {
         response.sendHeader("text/html");
         String homeFile = fixChmLink(chmFile.getHomeFile());
-        response.sendLine("<html>\n"
+        response.sendLine(String.format(
+                "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Frameset//EN\"\n"
+                        + "    \"http://www.w3.org/TR/html4/frameset.dtd\">\n"
+                        + "<html>\n"
                 + "<head>\n"
-                + "<meta http-equiv=\"Content-Type\" "
-                + " content=\"text/html; charset=" + encoding
-                + "\">\n"
-                + "<title>" + chmFile.getTitle() + "</title>\n"
+                        + "  <title>%s</title>\n"
+                        + "  <meta http-equiv=\"Content-Type\" content=\"text/html; charset=%s\">\n"
                 + "</head>\n"
                 + "<frameset cols=\"200, *\">\n"
-                + "  <frame src=\"/chmweb/sidebar2.html\" name=\"treefrm\">\n"
-                + "  <frame src=\"" + homeFile + "\" name=\"basefrm\">\n"
+                        + "  <frame src=\"/chmweb/sidebar.html\" name=\"treefrm\">\n"
+                        + "  <frame src=\"%s\" name=\"basefrm\">\n"
+                        + "  <noframes>\n"
+                        + "    <noscript>\n"
+                        + "      <div>JavaScript is disabled on your browser.</div>\n"
+                        + "    </noscript>\n"
+                        + "    <h2>Frame Alert</h2>\n"
+                        + "    <p>This document is designed to be viewed using the frames feature.\n"
+                        + "      If you see this message, you are using a non-frame-capable web client.\n"
+                        + "      Link to <a href=\"%s\">Main Page</a>.</p>\n"
+                        + "  </noframes>\n"
                 + "</frameset>\n"
-                + "</html>");
+                        + "</html>\n",
+                chmFile.getTitle(), encoding, homeFile, homeFile));
     }
 
     private void deliverTopicsTree() {
@@ -477,6 +488,7 @@ class ClientHandler extends Thread {
     private void deliverUnifiedSearch() {
         String query = request.getParameter("q");
         if (query == null) {
+            LOG.fine("empty query");
             return;
         }
         boolean useRegex = false;
@@ -484,6 +496,8 @@ class ClientHandler extends Thread {
         if (sUseRegex != null && sUseRegex.equals("1")) {
             useRegex = true;
         }
+
+        LOG.fine(String.format("query: %s, regex: %s", query, useRegex));
 
         response.sendHeader("application/json");
 

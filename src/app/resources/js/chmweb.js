@@ -77,11 +77,14 @@ var addTopicNodes = function (ul, topics) {
   topics.clean();
   for (var i = 0; i < topics.length; i++) {
     var item = topics[i];
+    item.clean();
     var li = document.createElement("li");
     var a = document.createElement("a");
-    a.href = item[0];
+    if (item[0]) {
+      a.href = item[0];
+      a.target = "basefrm";
+    }
     a.innerHTML = item[1];
-    a.target = "basefrm";
     li.appendChild(a);
     if (item.length >= 3) {
       li.className = "folder";
@@ -100,8 +103,19 @@ var loadTopicsTree = function () {
     if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
       onTopicsTreeReceived(xmlhttp.responseText);
     }
+    var topicsLoading = document.getElementById("topics-loading");
+    if (topicsLoading) {
+      if (topicsLoading.className.indexOf(" hidden") < 0) {
+        topicsLoading.className += " hidden";
+      }
+    }
   };
   xmlhttp.send(null);
+
+  var topicsLoading = document.getElementById("topics-loading");
+  if (topicsLoading) {
+    topicsLoading.className = topicsLoading.className.replace(" hidden", "");
+  }
 };
 
 var onTopicsTreeReceived = function (text) {
@@ -143,11 +157,22 @@ var loadFiles = function () {
   var xmlhttp = new XMLHttpRequest();
   xmlhttp.open("GET", "files.json", true);
   xmlhttp.onreadystatechange = function () {
+    var filesLoading = document.getElementById("files-loading");
+    if (filesLoading) {
+      if (filesLoading.className.indexOf(" hidden") < 0) {
+        filesLoading.className += " hidden";
+      }
+    }
     if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
       onFilesTreeReceived(xmlhttp.responseText);
     }
   };
   xmlhttp.send(null);
+
+  var filesLoading = document.getElementById("files-loading");
+  if (filesLoading) {
+    filesLoading.className = filesLoading.className.replace(" hidden", "");
+  }
 };
 
 var onFilesTreeReceived = function (text) {
@@ -165,17 +190,40 @@ var onFilesTreeReceived = function (text) {
 
 var searchInCHM = function (query, use_regex) {
   var xmlhttp = new XMLHttpRequest();
-  var url = "search.json?q=" + query;
+  var url = "search.json?q=" + encodeURI(query);
   if (use_regex) {
     url += "&regex=1";
   }
   xmlhttp.open("GET", url, true);
   xmlhttp.onreadystatechange = function () {
+    var searchLoading = document.getElementById("search-loading");
+    if (searchLoading) {
+      if (searchLoading.className.indexOf(" hidden") < 0) {
+        searchLoading.className += " hidden";
+      }
+    }
     if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
       onSearchResultReceived(xmlhttp.responseText);
     }
   };
   xmlhttp.send(null);
+
+  var search_results = document.getElementById("search-results");
+  if (search_results) {
+    if (search_results.className.indexOf(" hidden") < 0) {
+      search_results.className += " hidden";
+    }
+  }
+  var no_result_found = document.getElementById("no-result-found");
+  if (no_result_found) {
+    if (no_result_found.className.indexOf(" hidden") < 0) {
+      no_result_found.className += " hidden";
+    }
+  }
+  var searchLoading = document.getElementById("search-loading");
+  if (searchLoading) {
+    searchLoading.className = searchLoading.className.replace(" hidden", "");
+  }
 };
 
 var onSearchResultReceived = function (text) {
@@ -218,6 +266,7 @@ var onSearchResultReceived = function (text) {
         a.href = r[0];
         a.innerHTML = r[1];
         a.target = "basefrm";
+        a.onclick = resetHighlight;
         li.appendChild(a);
         ol.appendChild(li);
       }
@@ -388,11 +437,27 @@ var toggleHighlight = function () {
     var query = queryNode.value;
 
     localSearchHighlight(top.basefrm.document, query);
+
+    var nodes = top.basefrm.document.querySelectorAll(".searchword");
+    if (nodes && nodes.length >= 1) {
+      nodes[0].scrollIntoView(true);
+    }
   } else {
     highlight_toggle.setAttribute("data-toggle", "off");
     unhighlight();
   }
 };
+
+function resetHighlight() {
+  var highlight_toggle = document.getElementById("toggle-highlight");
+  if (!highlight_toggle) {
+    return;
+  }
+  var status = highlight_toggle.getAttribute("data-toggle");
+  if (status === "on") {
+    highlight_toggle.setAttribute("data-toggle", "off");
+  }
+}
 
 window.onload = function () {
   loadTopicsTree();

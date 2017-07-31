@@ -1,15 +1,21 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-    "http://www.w3.org/TR/html4/loose.dtd">
-<!--suppress HtmlUnknownTarget, HtmlUnknownTag -->
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Frameset//EN"
+    "http://www.w3.org/TR/html4/frameset.dtd">
 <html>
 <head>
-  <meta http-equiv="Content-Type" content="text/html">
-  <title>{title}</title>
+  <title>chm_title</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 </head>
-
 <frameset cols="200, *">
-  <frame src="/chmweb/sidebar2.html" name="treefrm">
-  <frame src="{home_file}" name="basefrm">
+  <frame src="/chmweb/sidebar.html" name="treefrm">
+  <frame src="chm-main-page.html" name="basefrm">
+  <noframes>
+    <noscript>
+      <div>JavaScript is disabled on your browser.</div>
+    </noscript>
+    <h2>Frame Alert</h2>
+    <p>This document is designed to be viewed using the frames feature.
+      If you see this message, you are using a non-frame-capable web client.
+      Link to <a href="chm-main-page.html">Main Page</a>.</p>
+  </noframes>
 </frameset>
-
 </html>

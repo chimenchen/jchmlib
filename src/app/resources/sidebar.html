@@ -15,8 +15,16 @@
 </div>
 
 <div id="Topics" class="tabcontent active">
-
+  <div id="topics-loading" class="loading hidden"></div>
   <ul class="tree" id="topics-tree">
+    <li class="folder on hidden">
+      <a href="/nonchmweb/" target="basefrm">Root Directory</a>
+      <ul>
+        <li class="file hidden">
+          <a href="/nonchmweb/" target="basefrm">Main Page</a>
+        </li>
+      </ul>
+    </li>
   </ul>
 
 </div>
@@ -32,11 +40,13 @@
       <label for="regex">Use regex</label>
     </div>
   </div>
+  <div id="search-loading" class="loading hidden"></div>
   <div id="no-result-found" class="no-result-found hidden">
     No result found.
   </div>
   <div id="search-results" class="search-results hidden">
     <input id="toggle-highlight" type="button" value="Toggle Highlight"
+           class="highlight"
            data-toggle="off" onclick="toggleHighlight()">
     <ol id="search-result-list">
     </ol>
@@ -46,7 +56,16 @@
 </div>
 
 <div id="Files" class="tabcontent">
+  <div id="files-loading" class="loading hidden"></div>
   <ul class="tree" id="files-tree">
+    <li class="folder on hidden">
+      <a href="/nonchmweb/" target="basefrm">Root Directory</a>
+      <ul>
+        <li class="file hidden">
+          <a href="/nonchmweb/" target="basefrm">Main Page</a>
+        </li>
+      </ul>
+    </li>
   </ul>
 </div>
 
