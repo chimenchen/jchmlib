@@ -80,6 +80,10 @@ public class ChmFile {
     // mappings are inserted.
     private final HashMap<String, ChmUnitInfo> dirMap = new LinkedHashMap<String, ChmUnitInfo>();
     String encoding = "UTF-8";
+    /**
+     * Mapping from paths to titles.
+     */
+    private HashMap<String, String> pathToTitle = null;
     private int detectedLCID = -1;
     private String homeFile;
     private String topicsFile;
@@ -719,7 +723,80 @@ public class ChmFile {
             return null;
         }
 
-        tree = ChmTopicsTree.buildTopicsTree(buf, encoding);
+        tree = buildTopicsTree(buf, encoding);
+        return tree;
+    }
+
+    /**
+     * Build the top level ChmTopicsTree.
+     *
+     * @param buf content
+     * @param encoding the encoding of buf
+     * @return the topics tree
+     */
+    private ChmTopicsTree buildTopicsTree(ByteBuffer buf, String encoding) {
+        pathToTitle = new LinkedHashMap<String, String>();
+
+        int currentID = 0;
+
+        ChmTopicsTree tree = new ChmTopicsTree();
+        tree.parent = null;
+        tree.title = "<Top>";
+        tree.id = currentID++;
+
+        ChmTopicsTree curRoot = tree;
+        ChmTopicsTree lastNode = tree;
+
+        TagReader tr = new TagReader(buf, encoding);
+        while (tr.hasNext()) {
+            Tag s = tr.getNext();
+            if (s.name == null) {
+                break;
+            }
+
+            if (s.name.equalsIgnoreCase("ul") && s.tagLevel > 1) {
+                curRoot = lastNode;
+            } else if (s.name.equalsIgnoreCase("/ul") && s.tagLevel > 0
+                    && curRoot.parent != null) {
+                lastNode = curRoot;
+                curRoot = curRoot.parent;
+            } else if (s.name.equalsIgnoreCase("object")
+                    && s.elements.get("type")
+                    .equalsIgnoreCase("text/sitemap")) {
+
+                lastNode = new ChmTopicsTree();
+                lastNode.id = currentID++;
+                lastNode.parent = curRoot;
+
+                s = tr.getNext();
+                while (!s.name.equalsIgnoreCase("/object")) {
+                    if (s.name.equalsIgnoreCase("param")) {
+                        String name = s.elements.get("name");
+                        String value = s.elements.get("value");
+                        if (name == null) {
+                            System.err.println("Illegal content file!");
+                        } else if (name.equals("Name")) {
+                            lastNode.title = value;
+                        } else if (name.equals("Local")) {
+                            if (value.startsWith("./")) {
+                                value = value.substring(2);
+                            }
+                            lastNode.path = "/" + value;
+                        }
+                    }
+                    s = tr.getNext();
+                }
+
+                curRoot.children.addLast(lastNode);
+
+                if (!"".equals(lastNode.path)) {
+                    pathToTitle.put(lastNode.path.toLowerCase(),
+                            lastNode.title);
+                }
+            }
+        }
+
+        tree.id = currentID;
         return tree;
     }
 
@@ -731,15 +808,15 @@ public class ChmFile {
      * or return the path if no topic found for the object.
      */
     public String getTitleOfObject(String path) {
-        if (tree == null) {
+        if (pathToTitle == null && tree == null) {
             tree = getTopicsTree();
-            if (tree == null) {
-                return path;
-            }
         }
-        String objectTitle = tree.getTitle(path, path);
-        releaseLargeTopicsTree(false);
-        return objectTitle;
+
+        if (pathToTitle != null
+                && pathToTitle.containsKey(path.toLowerCase())) {
+            return pathToTitle.get(path.toLowerCase());
+        }
+        return path;
     }
 
     /**
@@ -749,7 +826,7 @@ public class ChmFile {
      */
     @SuppressWarnings("SameParameterValue")
     public void releaseLargeTopicsTree(boolean forceRelease) {
-        if (forceRelease || (tree != null && tree.children != null && tree.children.size() > 200)) {
+        if (forceRelease || (tree != null && tree.id > 60000)) {
             tree = null;
         }
     }

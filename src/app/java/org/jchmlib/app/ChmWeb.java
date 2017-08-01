@@ -34,12 +34,14 @@ import org.jchmlib.app.net.HttpResponse;
 public class ChmWeb extends Thread {
 
     private static final Logger LOG = Logger.getLogger(ChmWeb.class.getName());
-    private final boolean isRunningFromJar;
+    final boolean isRunningFromJar;
+    ChmFile chmFile;
+    String encoding = "UTF8";
+    String resourcesPath;
+    ChmTopicsTree filesTree = null;
+    int totalFiles = 0;
     private ServerSocket listen_socket;
-    private ChmFile chmFile;
     private String chmFilePath = null;
-    private String encoding = "UTF8";
-    private String resourcesPath;
 
     public ChmWeb() {
         isRunningFromJar = checkRunningFromJar();
@@ -138,8 +140,7 @@ public class ChmWeb extends Thread {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     Socket client_socket = listen_socket.accept();
-                    new ClientHandler(client_socket, chmFile, encoding,
-                            isRunningFromJar, resourcesPath);
+                    new ClientHandler(client_socket, this);
                 } catch (SocketException ignored) {
                     break;
                 }
@@ -181,6 +182,7 @@ class ClientHandler extends Thread {
 
     private final Socket client;
     private final ChmFile chmFile;
+    private final ChmWeb server;
     private final boolean isRunningFromJar;
     private final String resourcesPath;
     private String encoding;
@@ -188,13 +190,15 @@ class ClientHandler extends Thread {
     private HttpResponse response;
     private String requestedFile;
 
-    ClientHandler(Socket client_socket, ChmFile file, String encoding,
-            boolean isRunningFromJar, String resourcesPath) {
+    ClientHandler(Socket client_socket, ChmWeb server) {
+            // ChmFile file, String encoding,
+            // boolean isRunningFromJar, String resourcesPath) {
         client = client_socket;
-        chmFile = file;
-        this.encoding = encoding;
-        this.isRunningFromJar = isRunningFromJar;
-        this.resourcesPath = resourcesPath;
+        chmFile = server.chmFile;
+        this.server = server;
+        this.encoding = server.encoding;
+        this.isRunningFromJar = server.isRunningFromJar;
+        this.resourcesPath = server.resourcesPath;
 
         try {
             request = new HttpRequest(client.getInputStream(), this.encoding);
@@ -386,13 +390,50 @@ class ClientHandler extends Thread {
                 chmFile.getTitle(), encoding, homeFile, homeFile));
     }
 
+    private ChmTopicsTree findSubtreeByID(ChmTopicsTree root, int treeID) {
+        if (root.id == treeID) {
+            return root;
+        }
+
+        for (ChmTopicsTree child : root.children) {
+            ChmTopicsTree result = findSubtreeByID(child, treeID);
+            if (result != null) {
+                return result;
+            }
+        }
+
+        return null;
+    }
+
+    private ChmTopicsTree allowSubtreeRequest(ChmTopicsTree tree) {
+        String sTreeID = request.getParameter("id");
+        if (sTreeID != null) {
+            try {
+                int treeID = Integer.parseInt(sTreeID);
+                if (treeID > 0) {
+                    return findSubtreeByID(tree, treeID);
+                }
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return tree;
+    }
+
     private void deliverTopicsTree() {
+        ChmTopicsTree tree = chmFile.getTopicsTree();
+        int maxLevel = tree.id > 10000 ? 2 : 100;
+
+        tree = allowSubtreeRequest(tree);
+        if (tree == null) {
+            return;
+        }
+
         response.sendHeader("application/json");
-        printTopicsTree(chmFile.getTopicsTree(), 0);
+        printTopicsTree(tree, 0, maxLevel);
         chmFile.releaseLargeTopicsTree(false);
     }
 
-    private void printTopicsTree(ChmTopicsTree tree, int level) {
+    private void printTopicsTree(ChmTopicsTree tree, int level, int maxLevel) {
         if (tree == null) {
             return;
         }
@@ -403,13 +444,21 @@ class ClientHandler extends Thread {
         if (!tree.children.isEmpty()) {
             if (level == 0) {
                 response.sendString("[");
+            } else if (level == maxLevel) {
+                if (tree.id > 0) {
+                    response.sendLine(String.format("[\"%s\", \"%s\", \"load-by-id\", %d]",
+                            tree.path, title, tree.id));
+                } else {
+                    response.sendLine(String.format("[\"%s\", \"%s\"]", tree.path, title));
+                }
+                return;
             } else {
                 response.sendLine(String.format("[\"%s\", \"%s\", [", tree.path, title));
             }
 
             int i = 0;
             for (ChmTopicsTree child : tree.children) {
-                printTopicsTree(child, level + 1);
+                printTopicsTree(child, level + 1, maxLevel);
                 if (i != tree.children.size() - 1) {
                     response.sendLine(", ");
                 }
@@ -432,11 +481,22 @@ class ClientHandler extends Thread {
     }
 
     private void deliverFilesTree() {
+        if (server.filesTree == null) {
+            DirChmEnumerator enumerator = new DirChmEnumerator();
+            chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, enumerator);
+            server.filesTree = buildFilesTree(enumerator.files);
+            server.totalFiles  = enumerator.files.size();
+        }
+        ChmTopicsTree tree = server.filesTree;
+        int maxLevel = server.totalFiles > 10000 ? 2 : 100;
+
+        tree = allowSubtreeRequest(tree);
+        if (tree == null) {
+            return;
+        }
+
         response.sendHeader("application/json");
-        DirChmEnumerator enumerator = new DirChmEnumerator();
-        chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, enumerator);
-        ChmTopicsTree tree = buildFilesTree(enumerator.files);
-        printTopicsTree(tree, 0);
+        printTopicsTree(tree, 0, maxLevel);
     }
 
     private ChmTopicsTree addFileNode(String path, String title, ChmTopicsTree currentDirNode) {
@@ -449,8 +509,10 @@ class ClientHandler extends Thread {
     }
 
     private ChmTopicsTree buildFilesTree(ArrayList<ChmUnitInfo> files) {
+        int currentID = 0;
         ChmTopicsTree root = new ChmTopicsTree();
         root.path = "/";
+        root.id = currentID++;
         ChmTopicsTree currentDirNode = root;
 
         addFileNode(fixChmLink(chmFile.getHomeFile()), "Main Page", root);
@@ -482,6 +544,7 @@ class ClientHandler extends Thread {
                 String leftPart = title.substring(index + 1);
                 currentDirNode = addFileNode(currentDirNode.path + dirPart,
                         dirPart, currentDirNode);
+                currentDirNode.id = currentID++;
 
                 title = leftPart;
             }
@@ -489,6 +552,7 @@ class ClientHandler extends Thread {
             ChmTopicsTree node = addFileNode(path, title, currentDirNode);
             if (path.endsWith("/")) {
                 currentDirNode = node;
+                currentDirNode.id = currentID++;
             }
         }
 

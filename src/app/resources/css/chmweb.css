@@ -76,7 +76,7 @@ li > a {
 }
 
 /*noinspection CssUnusedSymbol*/
-li.folder {
+li.folder, li.folder-to-load {
   background: url(../img/folderclosed.png) 0 0 no-repeat;
   padding-bottom: 0;
 }
@@ -151,6 +151,7 @@ li.folder.on > ul {
   margin-left: 0;
 }
 
+/*noinspection CssUnusedSymbol*/
 #toggle-highlight[data-toggle="on"] {
   background-color: yellow;
 }

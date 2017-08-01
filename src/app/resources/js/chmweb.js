@@ -27,35 +27,39 @@ var registerTabOnClick = function () {
   });
 };
 
-var registerFolderToggle = function (root) {
-  $(".folder", root).each(function (i, folder) {
-    $(folder).on("click", function (event) {
-      event.stopPropagation();
-      if (event.target !== folder) {
-        return;
+var registerSingleFolderToggle = function (folder) {
+  $(folder).on("click", function (event) {
+    event.stopPropagation();
+    if (event.target !== folder) {
+      return;
+    }
+    if ($(folder).hasClass("on")) {
+      $(folder).removeClass("on");
+      if (isIE6()) {
+        $(folder).children("ul").each(function (i, node) {
+          $(node).addClass("hidden");
+        });
       }
-      if ($(folder).hasClass("on")) {
-        $(folder).removeClass("on");
-        if (isIE6()) {
-          $(folder).children("ul").each(function (i, node) {
-            $(node).addClass("hidden");
-          });
-        }
-      } else {
-        $(folder).addClass("on");
-        if (isIE6()) {
-          $(folder).children("ul").each(function (i, node) {
-            $(node).removeClass("hidden");
-          });
-        }
+    } else {
+      $(folder).addClass("on");
+      if (isIE6()) {
+        $(folder).children("ul").each(function (i, node) {
+          $(node).removeClass("hidden");
+        });
       }
-    });
+    }
   });
 };
 
-var addTopicNodes = function (ul, topics) {
+var registerFolderToggle = function (root) {
+  $(".folder", root).each(function (i, folder) {
+    registerSingleFolderToggle(folder);
+  });
+};
+
+var addTreeNodes = function (ul, treeItems) {
   ul.innerHTML = "";
-  $(topics).each(function (i, item) {
+  $(treeItems).each(function (i, item) {
     if (!item || item.length < 2) {
       return;
     }
@@ -70,16 +74,59 @@ var addTopicNodes = function (ul, topics) {
     var li = document.createElement("li");
     li.appendChild(a);
 
-    if (item.length >= 3) {
+    if (item.length === 3) {
       li.className = "folder";
       var childUl = document.createElement("ul");
       if (isIE6()) {
         childUl.className = "hidden";
       }
-      addTopicNodes(childUl, item[2]);
+      addTreeNodes(childUl, item[2]);
       li.appendChild(childUl);
+    } else if (item.length === 4) {
+      var cmd = item[2];
+      var treeID = item[3];
+      if (cmd === "load-by-id" && treeID > 0) {
+        li.className = "folder-to-load";
+        li.id = "folder" + treeID;
+      }
     }
     ul.appendChild(li);
+  });
+};
+
+var registerLazyLoadSubtree = function (root, isTopics) {
+  $(".folder-to-load", root).each(function (i, folder) {
+    registerLazyLoadSingleSubtree(folder, isTopics);
+  });
+};
+
+var registerLazyLoadSingleSubtree = function (folder, isTopics) {
+  $(folder).on("click", function (event) {
+    event.stopPropagation();
+    if (event.target !== folder) {
+      return;
+    }
+    var folderID = folder.id;
+    var treeID = folderID.replace("folder", "");
+    $.ajax({
+      url: isTopics ? "topics.json" : "files.json",
+      data: {id: treeID},
+      dataType: "json",
+      /** @namespace data.responseJSON **/
+      complete: function (data, status) {
+        if (status === "success" && data.responseJSON) {
+          var topicsTreeItems = data.responseJSON;
+          var childUl = document.createElement("ul");
+          addTreeNodes(childUl, topicsTreeItems);
+          folder.appendChild(childUl);
+          registerFolderToggle(childUl);
+          registerLazyLoadSubtree(childUl, isTopics);
+          $(folder).removeClass("folder-to-load").addClass("folder on");
+          $(folder).off("click");
+          registerSingleFolderToggle(folder);
+        }
+      }
+    });
   });
 };
 
@@ -92,10 +139,11 @@ var loadTopicsTree = function () {
       $("#topics-loading").addClass("hidden");
 
       if (status === "success" && data.responseJSON) {
-        var topics_tree = data.responseJSON;
+        var topicsTreeItems = data.responseJSON;
         var ulRoot = $("#topics-tree")[0];
-        addTopicNodes(ulRoot, topics_tree);
+        addTreeNodes(ulRoot, topicsTreeItems);
         registerFolderToggle(ulRoot);
+        registerLazyLoadSubtree(ulRoot, true);
         return;
       }
 
@@ -121,10 +169,11 @@ var loadFiles = function () {
       $("#files-loading").addClass("hidden");
 
       if (status === "success" && data.responseJSON) {
-        var files = data.responseJSON;
+        var filesTreeItems = data.responseJSON;
         var ulRoot = $("#files-tree")[0];
-        addTopicNodes(ulRoot, files);
+        addTreeNodes(ulRoot, filesTreeItems);
         registerFolderToggle(ulRoot);
+        registerLazyLoadSubtree(ulRoot, false);
       }
     }
   });
