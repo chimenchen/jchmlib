@@ -72,6 +72,7 @@ li > a {
   padding: 1px 5px 1px 5px;
   margin-left: 15px;
   display: block;
+  white-space:nowrap;
 }
 
 /*noinspection CssUnusedSymbol*/
@@ -180,12 +181,12 @@ td.filesize {
 }
 
 td.file {
-  background: url(../img/doc.png) 0 -2px no-repeat;
+  background: url(../img/doc.png) 0 0 no-repeat;
   padding-left: 20px;
 }
 
 /*noinspection CssUnusedSymbol*/
 td.folder {
-  background: url(../img/folderclosed.png) 0 -2px no-repeat;
+  background: url(../img/folderclosed.png) 0 0 no-repeat;
   padding-left: 20px;
 }
