@@ -365,11 +365,11 @@ class ClientHandler extends Thread {
                 "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Frameset//EN\"\n"
                         + "    \"http://www.w3.org/TR/html4/frameset.dtd\">\n"
                         + "<html>\n"
-                + "<head>\n"
+                        + "<head>\n"
                         + "  <title>%s</title>\n"
                         + "  <meta http-equiv=\"Content-Type\" content=\"text/html; charset=%s\">\n"
-                + "</head>\n"
-                + "<frameset cols=\"200, *\">\n"
+                        + "</head>\n"
+                        + "<frameset cols=\"200, *\">\n"
                         + "  <frame src=\"/chmweb/sidebar.html\" name=\"treefrm\">\n"
                         + "  <frame src=\"%s\" name=\"basefrm\">\n"
                         + "  <noframes>\n"
@@ -381,7 +381,7 @@ class ClientHandler extends Thread {
                         + "      If you see this message, you are using a non-frame-capable web client.\n"
                         + "      Link to <a href=\"%s\">Main Page</a>.</p>\n"
                         + "  </noframes>\n"
-                + "</frameset>\n"
+                        + "</frameset>\n"
                         + "</html>\n",
                 chmFile.getTitle(), encoding, homeFile, homeFile));
     }
@@ -398,26 +398,36 @@ class ClientHandler extends Thread {
         }
 
         String title = tree.title.length() > 0 ? tree.title : "untitled";
-        title = title.replace("'", "\\'");
+        title = title.replace("\"", "\\\"");
 
-        if (level == 0) {
-            response.sendString("[");
+        if (!tree.children.isEmpty()) {
+            if (level == 0) {
+                response.sendString("[");
+            } else {
+                response.sendLine(String.format("[\"%s\", \"%s\", [", tree.path, title));
+            }
+
+            int i = 0;
             for (ChmTopicsTree child : tree.children) {
                 printTopicsTree(child, level + 1);
+                if (i != tree.children.size() - 1) {
+                    response.sendLine(", ");
+                }
+                i++;
             }
-            response.sendLine("]");
-        } else if (!tree.children.isEmpty()) {
-            response.sendLine(String.format("['%s', '%s', [", tree.path, title));
-            for (ChmTopicsTree child : tree.children) {
-                printTopicsTree(child, level + 1);
+
+            if (level == 0) {
+                response.sendLine("]");
+            } else {
+                response.sendString("]]");
             }
-            response.sendLine("],],");
         } else { // leaf node
             if (tree.path.length() == 0 && title.equalsIgnoreCase("untitled")) {
-                return;
+                response.sendString("[]");
+            } else {
+                String path = fixChmLink(tree.path);
+                response.sendString(String.format("[\"%s\", \"%s\"]", path, title));
             }
-            String path = fixChmLink(tree.path);
-            response.sendLine(String.format("['%s', '%s'],", path, title));
         }
     }
 
@@ -493,7 +503,7 @@ class ClientHandler extends Thread {
         }
         boolean useRegex = false;
         String sUseRegex = request.getParameter("regex");
-        if (sUseRegex != null && sUseRegex.equals("1")) {
+        if (sUseRegex != null && (sUseRegex.equals("1") || sUseRegex.equalsIgnoreCase("true"))) {
             useRegex = true;
         }
 
@@ -507,18 +517,23 @@ class ClientHandler extends Thread {
             HashMap<String, String> results = searcher.getResults();
 
             if (results != null && results.size() > 0) {
-                response.sendLine("{'ok': true, 'results':[");
+                response.sendLine("{\"ok\": true, \"results\":[");
+                int i = 0;
                 for (Map.Entry<String, String> entry : results.entrySet()) {
                     String url = "/" + entry.getKey();
                     String topic = entry.getValue();
                     url = fixChmLink(url);
-                    url = url.replace("'", "\\'");
-                    topic = topic.replace("'", "\\'");
-                    response.sendLine(String.format("['%s', '%s'],", url, topic));
+                    url = url.replace("\"", "\\\"");
+                    topic = topic.replace("\"", "\\\"");
+                    response.sendString(String.format("[\"%s\", \"%s\"]", url, topic));
+                    if (i < results.size() - 1) {
+                        response.sendLine(",");
+                    }
+                    i++;
                 }
-                response.sendLine("],}");
+                response.sendLine("]}");
             } else {
-                response.sendLine("{'ok': false}");
+                response.sendLine("{\"ok\": false}");
             }
 
             return;
@@ -529,17 +544,17 @@ class ClientHandler extends Thread {
             chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, enumerator);
             ArrayList<String> results = enumerator.getResults();
             if (results.size() == 0) {
-                response.sendLine("{'ok': false}");
+                response.sendLine("{\"ok\": false}");
                 return;
             }
 
-            response.sendLine("{'ok': true, 'results':[");
+            response.sendLine("{\"ok\": true, \"results\":[");
             for (String url : results) {
                 String topic = chmFile.getTitleOfObject(url);
-                url = url.replace("'", "\\'");
+                url = url.replace("\"", "\\\"");
                 url = fixChmLink(url);
-                topic = topic.replace("'", "\\'");
-                response.sendLine(String.format("['%s', '%s'],", url, topic));
+                topic = topic.replace("\"", "\\\"");
+                response.sendLine(String.format("[\"%s\", \"%s\"],", url, topic));
             }
             response.sendLine("],}");
         } catch (Exception e) {

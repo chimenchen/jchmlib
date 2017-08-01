@@ -18,15 +18,15 @@ import java.util.logging.Logger;
 /**
  * Search a CHM file using its built-in full-text-search index.
  * <pre>
- * <code>
+ * {@code
  * ChmFile chmFile = new ChmFile("test.chm");
  * ChmIndexSearcher searcher = chmFile.getIndexSearcher();
  * if (!searcher.notSearchable) {
  *     searcher.search("hello", true, true);
- *     HashMap&lt;String, String&gt; results = searcher.getResults();
+ *     HashMap<String, String> results = searcher.getResults();
  *     ...
  * }
- * </code>
+ * }
  * </pre>
  */
 public class ChmIndexSearcher {

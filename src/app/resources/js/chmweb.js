@@ -1,304 +1,163 @@
-Array.prototype.clean = function () {
-  for (var i = 0; i < this.length; i++) {
-    if (this[i] === undefined) {
-      this.splice(i, 1);
-      i--;
-    }
-  }
-  return this;
-};
-
-if (!Function.prototype.bind) {
-  Function.prototype.bind = function (oThis) {
-    if (typeof this !== "function") {
-      // closest thing possible to the ECMAScript 5
-      // internal IsCallable function
-      throw new TypeError("Function.prototype.bind - what is trying to be bound is not callable");
-    }
-
-    var aArgs = Array.prototype.slice.call(arguments, 1),
-        fToBind = this,
-        fNOP = function () {},
-        fBound = function () {
-          return fToBind.apply(this instanceof fNOP && oThis
-                  ? this
-                  : oThis,
-              aArgs.concat(Array.prototype.slice.call(arguments)));
-        };
-
-    fNOP.prototype = this.prototype;
-    fBound.prototype = new fNOP();
-
-    return fBound;
-  };
-}
-
 var openTab = function (event, tabName) {
-  var i;
-  var tabcontent = document.querySelectorAll(".tabcontent");
-  for (i = 0; i < tabcontent.length; i++) {
-    tabcontent[i].className = tabcontent[i].className.replace(" active", "");
-    if (tabcontent[i].id === tabName) {
-      tabcontent[i].className += " active";
+  $(".tabcontent").each(function (i, tabcontent) {
+    $(tabcontent).removeClass("active");
+    if (tabcontent.id === tabName) {
+      $(tabcontent).addClass("active");
     }
-  }
+  });
 
-  var tablinks = document.querySelectorAll(".tablinks");
-  for (i = 0; i < tablinks.length; i++) {
-    tablinks[i].className = tablinks[i].className.replace(" active", "");
-  }
-  var target = (event.currentTarget) ? event.currentTarget : event.srcElement;
-  target.className += " active";
-};
-
-var toggleFolder = function (node, evt) {
-  evt = evt || window.event;
-  var folder = evt.target || evt.srcElement;
-  if (folder !== node) {
-    return;
-  }
-  if (folder.className.indexOf(" on") > 0) {
-    folder.className = folder.className.replace(" on", "");
-  } else {
-    folder.className += " on";
-  }
+  $(".tablinks").each(function (i, tablink) {
+    $(tablink).removeClass("active");
+  });
+  $(event.target).addClass("active");
 };
 
 var registerFolderToggle = function (root) {
-  var folders = root.querySelectorAll(".folder");
-  for (var i = 0; i < folders.length; i++) {
-    var folder = folders[i];
-    folder.onclick = toggleFolder.bind(null, folder);
-  }
+  $(".folder", root).each(function (i, folder) {
+    $(folder).on("click", function (event) {
+      event.stopPropagation();
+      if (event.target !== folder) {
+        return;
+      }
+      if ($(folder).hasClass("on")) {
+        $(folder).removeClass("on");
+      } else {
+        $(folder).addClass("on");
+      }
+    });
+  });
 };
 
 var addTopicNodes = function (ul, topics) {
-  ul.innerHTML = "";
-  topics.clean();
-  for (var i = 0; i < topics.length; i++) {
-    var item = topics[i];
-    item.clean();
-    var li = document.createElement("li");
-    var a = document.createElement("a");
+  $(ul).empty();
+  $(topics).each(function (i, item) {
+    if (!item || item.length < 2) {
+      return;
+    }
+
+    var a = $("<a>");
     if (item[0]) {
-      a.href = item[0];
-      a.target = "basefrm";
+      a.attr("href", item[0]);
+      a.attr("target", "basefrm");
     }
-    a.innerHTML = item[1];
-    li.appendChild(a);
+    a.text(item[1]);
+
+    var li = $("<li></li>");
+    li.append(a);
+
     if (item.length >= 3) {
-      li.className = "folder";
-      var child_ul = document.createElement("ul");
-      addTopicNodes(child_ul, item[2]);
-      li.appendChild(child_ul);
+      li.addClass("folder");
+      var childUl = $("<ul></ul>");
+      addTopicNodes(childUl, item[2]);
+      li.append(childUl);
     }
-    ul.appendChild(li);
-  }
+
+    $(ul).append(li);
+  });
 };
 
 var loadTopicsTree = function () {
-  var xmlhttp = new XMLHttpRequest();
-  xmlhttp.open("GET", "topics.json", true);
-  xmlhttp.onreadystatechange = function () {
-    if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
-      onTopicsTreeReceived(xmlhttp.responseText);
-    }
-    var topicsLoading = document.getElementById("topics-loading");
-    if (topicsLoading) {
-      if (topicsLoading.className.indexOf(" hidden") < 0) {
-        topicsLoading.className += " hidden";
+  $.ajax({
+    url: "topics.json",
+    dataType: "json",
+    /** @namespace data.responseJSON **/
+    complete: function (data, status) {
+      $("#topics-loading").addClass("hidden");
+
+      if (status === "success" && data.responseJSON) {
+        var topics_tree = data.responseJSON;
+        var ulRoot = $("#topics-tree");
+        addTopicNodes(ulRoot, topics_tree);
+        registerFolderToggle(ulRoot);
+        return;
       }
+
+      // hide Topics tab
+      $("#tablink-topics").removeClass("active").addClass("hidden");
+      $("#Topics").removeClass("active").addClass("hidden");
+
+      // switch to Files tab
+      $("#tablink-files").addClass("active");
+      $("#Files").addClass("active");
     }
-  };
-  xmlhttp.send(null);
+  });
 
-  var topicsLoading = document.getElementById("topics-loading");
-  if (topicsLoading) {
-    topicsLoading.className = topicsLoading.className.replace(" hidden", "");
-  }
-};
-
-var onTopicsTreeReceived = function (text) {
-  if (text) {
-    // console.debug(text);
-    var json = eval("(" + text + ")");
-    if (json) {
-      var topics_tree = json;
-      var ulRoot = document.getElementById("topics-tree");
-      addTopicNodes(ulRoot, topics_tree);
-      registerFolderToggle(ulRoot);
-      return;
-    }
-  }
-
-  var tablinkTopics = document.getElementById("tablink-topics");
-  var tabcontentTopics = document.getElementById("Topics");
-  if (tablinkTopics) {
-    tablinkTopics.className = tablinkTopics.className.replace(" active", "");
-    tablinkTopics.className += " hidden";
-  }
-  if (tabcontentTopics) {
-    tabcontentTopics.className = tabcontentTopics.className.replace(" active",
-        "");
-    tabcontentTopics.className += " hidden";
-  }
-
-  var tablinkFiles = document.getElementById("tablink-files");
-  var tabcontentFiles = document.getElementById("Files");
-  if (tablinkFiles) {
-    tablinkFiles.className += " active";
-  }
-  if (tabcontentFiles) {
-    tabcontentFiles.className += " active";
-  }
+  $("#topics-loading").removeClass("hidden");
 };
 
 var loadFiles = function () {
-  var xmlhttp = new XMLHttpRequest();
-  xmlhttp.open("GET", "files.json", true);
-  xmlhttp.onreadystatechange = function () {
-    var filesLoading = document.getElementById("files-loading");
-    if (filesLoading) {
-      if (filesLoading.className.indexOf(" hidden") < 0) {
-        filesLoading.className += " hidden";
+  $.ajax({
+    url: "files.json",
+    dataType: "json",
+    /** @namespace data.responseJSON **/
+    complete: function (data, status) {
+      $("#files-loading").addClass("hidden");
+
+      if (status === "success" && data.responseJSON) {
+        var files = data.responseJSON;
+        var ulRoot = $("#files-tree");
+        addTopicNodes(ulRoot, files);
+        registerFolderToggle(ulRoot);
       }
     }
-    if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
-      onFilesTreeReceived(xmlhttp.responseText);
-    }
-  };
-  xmlhttp.send(null);
+  });
 
-  var filesLoading = document.getElementById("files-loading");
-  if (filesLoading) {
-    filesLoading.className = filesLoading.className.replace(" hidden", "");
-  }
-};
-
-var onFilesTreeReceived = function (text) {
-  if (text) {
-    // console.debug(text);
-    var json = eval("(" + text + ")");
-    if (json) {
-      var files = json;
-      var ulRoot = document.getElementById("files-tree");
-      addTopicNodes(ulRoot, files);
-      registerFolderToggle(ulRoot);
-    }
-  }
+  $("#files-loading").removeClass("hidden");
 };
 
 var searchInCHM = function (query, use_regex) {
-  var xmlhttp = new XMLHttpRequest();
-  var url = "search.json?q=" + encodeURI(query);
-  if (use_regex) {
-    url += "&regex=1";
-  }
-  xmlhttp.open("GET", url, true);
-  xmlhttp.onreadystatechange = function () {
-    var searchLoading = document.getElementById("search-loading");
-    if (searchLoading) {
-      if (searchLoading.className.indexOf(" hidden") < 0) {
-        searchLoading.className += " hidden";
+  $.ajax({
+    url: "search.json",
+    data: {q: query, regex: use_regex},
+    dataType: "json",
+    /** @namespace data.responseJSON **/
+    complete: function (data, status) {
+      $("#search-loading").addClass("hidden");
+
+      if (status === "success" && data.responseJSON) {
+        onSearchResultReceived(data.responseJSON);
       }
     }
-    if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
-      onSearchResultReceived(xmlhttp.responseText);
-    }
-  };
-  xmlhttp.send(null);
+  });
 
-  var search_results = document.getElementById("search-results");
-  if (search_results) {
-    if (search_results.className.indexOf(" hidden") < 0) {
-      search_results.className += " hidden";
-    }
-  }
-  var no_result_found = document.getElementById("no-result-found");
-  if (no_result_found) {
-    if (no_result_found.className.indexOf(" hidden") < 0) {
-      no_result_found.className += " hidden";
-    }
-  }
-  var searchLoading = document.getElementById("search-loading");
-  if (searchLoading) {
-    searchLoading.className = searchLoading.className.replace(" hidden", "");
-  }
+  $("#search-loading").removeClass("hidden");
+  $("#search-results").addClass("hidden");
+  $("#no-result-found").addClass("hidden");
 };
 
-var onSearchResultReceived = function (text) {
-  var search_results;
-  var no_result_found;
-  if (!text) {
-    return;
-  }
-
-  // console.debug(text);
-
-  var result = eval("(" + text + ")");
+var onSearchResultReceived = function (result) {
   /** @namespace result.ok **/
   if (!result.ok) {
-    search_results = document.getElementById("search-results");
-    if (search_results) {
-      if (search_results.className.indexOf(" hidden") < 0) {
-        search_results.className += " hidden";
-      }
-    }
-    no_result_found = document.getElementById("no-result-found");
-    if (no_result_found) {
-      if (no_result_found) {
-        no_result_found.className = no_result_found.className.replace(
-            " hidden", "");
-      }
-    }
+    $("#search-results").addClass("hidden");
+    $("#no-result-found").removeClass("hidden");
   } else {
     /** @namespace result.results **/
-    var items = result.results;
-    items.clean();
-    search_results = document.getElementById("search-results");
-    if (search_results) {
-      var ol = document.getElementById("search-result-list");
-      ol.innerHTML = "";
-      for (var i = 0; i < items.length; i++) {
-        var r = items[i];
-        var li = document.createElement("li");
-        var a = document.createElement("a");
-        a.href = r[0];
-        a.innerHTML = r[1];
-        a.target = "basefrm";
-        a.onclick = resetHighlight;
-        li.appendChild(a);
-        ol.appendChild(li);
-      }
+    var ol = $("#search-result-list");
+    ol.empty();
+    $(result.results).each(function (i, r) {
+      var a = $("<a>");
+      a.attr("href", r[0]);
+      a.attr("target", "basefrm");
+      a.text(r[1]);
+      a.onclick = resetHighlight;
+      var li = $("<li></li>");
+      li.append(a);
+      ol.append(li);
+    });
 
-      search_results.className = search_results.className.replace(
-          " hidden", "");
-
-      var highlight_toggle = document.getElementById("toggleHighlight");
-      if (highlight_toggle) {
-        highlight_toggle.setAttribute("data-toggle", "off");
-      }
-    }
-
-    no_result_found = document.getElementById("no-result-found");
-    if (no_result_found) {
-      if (no_result_found.className.indexOf(" hidden") < 0) {
-        no_result_found.className += " hidden";
-      }
-    }
+    $("#search-results").removeClass("hidden");
+    $("#toggle-highlight").removeClass("hidden").attr("data-toggle", "off");
+    $("#no-result-found").addClass("hidden");
   }
 };
 
 var onSearch = function () {
-  var queryNode = document.getElementById("query");
-  if (!queryNode || !queryNode.value) {
+  var queryNode = $("#query");
+  if (!queryNode || !queryNode.val()) {
     return;
   }
-  var query = queryNode.value;
-  // console.debug("query: " + query);
-  var use_regex = document.getElementById("regex").checked;
-  // console.debug("use_regex: " + use_regex);
-
+  var query = queryNode.val();
+  var use_regex = $("#regex").is(":checked");
   searchInCHM(query, use_regex);
 };
 
@@ -313,7 +172,8 @@ var onSearchEnter = function (e) {
 var unhighlight = function () {
   /** @namespace top.basefrm **/
   if (top.basefrm) {
-    unhighlightNode(top.basefrm.document.getElementsByTagName('body')[0]);
+    // unhighlightNode($("body", top.basefrm.document));
+    unhighlightNode(top.basefrm.document.getElementsByTagName("body")[0]);
   }
 };
 
@@ -418,48 +278,40 @@ var localSearchHighlight = function (doc, searchStr) {
 };
 
 var toggleHighlight = function () {
-  var highlight_toggle = document.getElementById("toggle-highlight");
-  if (!highlight_toggle) {
-    return;
-  }
-  var status = highlight_toggle.getAttribute("data-toggle");
-
+  var highlightToggle = $("#toggle-highlight");
+  var status = highlightToggle.attr("data-toggle");
   if (status === "off") {
-    highlight_toggle.setAttribute("data-toggle", "on");
+    highlightToggle.attr("data-toggle", "on");
     if (!top.basefrm) {
       return;
     }
 
-    var queryNode = document.getElementById("query");
-    if (!queryNode || !queryNode.value) {
+    var query = $("#query").val();
+    if (!query) {
       return;
     }
-    var query = queryNode.value;
 
     localSearchHighlight(top.basefrm.document, query);
 
-    var nodes = top.basefrm.document.querySelectorAll(".searchword");
+    var nodes = $(".searchword", top.basefrm.document);
     if (nodes && nodes.length >= 1) {
       nodes[0].scrollIntoView(true);
     }
   } else {
-    highlight_toggle.setAttribute("data-toggle", "off");
+    highlightToggle.attr("data-toggle", "off");
     unhighlight();
   }
 };
 
 function resetHighlight() {
-  var highlight_toggle = document.getElementById("toggle-highlight");
-  if (!highlight_toggle) {
-    return;
-  }
-  var status = highlight_toggle.getAttribute("data-toggle");
+  var highlightToggle = $("#toggle-highlight");
+  var status = highlightToggle.attr("data-toggle");
   if (status === "on") {
-    highlight_toggle.setAttribute("data-toggle", "off");
+    highlightToggle.attr("data-toggle", "off");
   }
 }
 
-window.onload = function () {
+$(document).ready(function () {
   loadTopicsTree();
   loadFiles();
-};
+});
