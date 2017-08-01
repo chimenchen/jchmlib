@@ -44,7 +44,7 @@ public class ChmWeb extends Thread {
     public ChmWeb() {
         isRunningFromJar = checkRunningFromJar();
 
-        resourcesPath = System.getProperty("org.util.jchmlib.app.ChmWeb.resources");
+        resourcesPath = System.getProperty("org.jchmlib.app.ChmWeb.resources");
         if (resourcesPath == null && !isRunningFromJar) {
             resourcesPath = "resources";
         }
@@ -188,7 +188,7 @@ class ClientHandler extends Thread {
     private HttpResponse response;
     private String requestedFile;
 
-    public ClientHandler(Socket client_socket, ChmFile file, String encoding,
+    ClientHandler(Socket client_socket, ChmFile file, String encoding,
             boolean isRunningFromJar, String resourcesPath) {
         client = client_socket;
         chmFile = file;
