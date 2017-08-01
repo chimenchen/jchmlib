@@ -1,15 +1,30 @@
-var openTab = function (event, tabName) {
-  $(".tabcontent").each(function (i, tabcontent) {
-    $(tabcontent).removeClass("active");
-    if (tabcontent.id === tabName) {
-      $(tabcontent).addClass("active");
-    }
-  });
+var isIE6 = function () {
+  var b = document.createElement('b');
+  b.innerHTML = '<!--[if IE 6]><i></i><![endif]-->';
+  return b.getElementsByTagName('i').length === 1
+};
 
-  $(".tablinks").each(function (i, tablink) {
-    $(tablink).removeClass("active");
+var registerTabOnClick = function() {
+  $(".tablinks").each(function(i, node) {
+    $(node).click(function (event) {
+      event.stopPropagation();
+      if (event.target !== node) {
+        return;
+      }
+      var tabName = $(node).attr("data-target");
+      $(".tabcontent").each(function (j, tabcontent) {
+        $(tabcontent).addClass("hidden");
+        if (tabcontent.id === tabName) {
+          $(tabcontent).removeClass("hidden");
+        }
+      });
+
+      $(".tablinks").each(function (j, tablink) {
+        $(tablink).removeClass("active");
+      });
+      $(node).addClass("active");
+    });
   });
-  $(event.target).addClass("active");
 };
 
 var registerFolderToggle = function (root) {
@@ -21,8 +36,18 @@ var registerFolderToggle = function (root) {
       }
       if ($(folder).hasClass("on")) {
         $(folder).removeClass("on");
+        if (isIE6()) {
+          $(folder).children("ul").each(function (i, node) {
+            $(node).addClass("hidden");
+          });
+        }
       } else {
         $(folder).addClass("on");
+        if (isIE6()) {
+          $(folder).children("ul").each(function (i, node) {
+            $(node).removeClass("hidden");
+          });
+        }
       }
     });
   });
@@ -48,6 +73,9 @@ var addTopicNodes = function (ul, topics) {
     if (item.length >= 3) {
       li.addClass("folder");
       var childUl = $("<ul></ul>");
+      if (isIE6()) {
+        childUl.addClass("hidden");
+      }
       addTopicNodes(childUl, item[2]);
       li.append(childUl);
     }
@@ -74,11 +102,11 @@ var loadTopicsTree = function () {
 
       // hide Topics tab
       $("#tablink-topics").removeClass("active").addClass("hidden");
-      $("#Topics").removeClass("active").addClass("hidden");
+      $("#Topics").addClass("hidden");
 
       // switch to Files tab
       $("#tablink-files").addClass("active");
-      $("#Files").addClass("active");
+      $("#Files").removeClass("hidden");
     }
   });
 
@@ -312,6 +340,7 @@ function resetHighlight() {
 }
 
 $(document).ready(function () {
+  registerTabOnClick();
   loadTopicsTree();
   loadFiles();
 });

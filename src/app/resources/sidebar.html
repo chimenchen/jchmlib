@@ -4,20 +4,24 @@
 <head>
   <meta charset="UTF-8">
   <title>Title</title>
+  <!--[if !IE 6]><!-->
   <link rel="stylesheet" href="css/chmweb.css">
+  <!--<![endif]-->
+  <!--[if lte IE 6]>
+  <link rel="stylesheet" type="text/css" href="css/ie6.css"/>
+  <![endif]-->
   <script src="js/jquery-1.12.4.min.js"></script>
   <script src="js/chmweb.js"></script>
 </head>
 <body>
 
 <div class="tab">
-  <div id="tablink-topics" class="button tablinks active" onclick="openTab(event, 'Topics')">Topics
-  </div>
-  <div id="tablink-search" class="button tablinks" onclick="openTab(event, 'Search')">Search</div>
-  <div id="tablink-files" class="button tablinks" onclick="openTab(event, 'Files')">Files</div>
+  <div id="tablink-topics" class="button tablinks active" data-target="Topics">Topics</div>
+  <div id="tablink-search" class="button tablinks" data-target="Search">Search</div>
+  <div id="tablink-files" class="button tablinks" data-target="Files">Files</div>
 </div>
 
-<div id="Topics" class="tabcontent active">
+<div id="Topics" class="tabcontent">
   <div id="topics-loading" class="loading hidden"></div>
   <ul class="tree" id="topics-tree">
     <li class="folder on hidden">
@@ -32,9 +36,9 @@
 
 </div>
 
-<div id="Search" class="tabcontent">
+<div id="Search" class="tabcontent hidden">
   <div id="search-form">
-    <input type="image" name="go" src="img/searchicon.png" alt="Go"
+    <input type="image" id="go" name="go" src="img/searchicon.png" alt="Go"
            onclick="onSearch()">
     <input type="text" id="query" name="query" placeholder="Search.."
            onkeypress="return onSearchEnter(event)">
@@ -57,7 +61,7 @@
 
 </div>
 
-<div id="Files" class="tabcontent">
+<div id="Files" class="tabcontent hidden">
   <div id="files-loading" class="loading hidden"></div>
   <ul class="tree" id="files-tree">
     <li class="folder on hidden">

@@ -38,7 +38,7 @@ div.tab .button.active {
 
 .tabcontent {
   display: block;
-  padding: 40px 10px 10px 10px;
+  padding: 10px;
   border: 0;
 }
 
@@ -67,7 +67,7 @@ li {
   font-size: small;
 }
 
-li > a {
+li a {
   line-height: 16px;
   padding: 1px 5px 1px 5px;
   margin-left: 15px;
@@ -80,21 +80,13 @@ li.folder {
   padding-bottom: 0;
 }
 
-li.folder > a {
+li.folder a {
   padding-bottom: 3px;
-}
-
-li.folder > ul {
-  display: none;
 }
 
 /*noinspection CssUnusedSymbol*/
 li.folder.on {
   background: url(../img/folderopen.png) 0 0 no-repeat;
-}
-
-li.folder.on > ul {
-  display: block;
 }
 
 #search-form {
@@ -104,20 +96,19 @@ li.folder.on > ul {
   border-bottom: 1px solid #ccc;
 }
 
-#search-form input[name="query"] {
+#query {
   height: 25px;
   line-height: 25px;
   border: solid 1px #ccc;
   border-radius: 10px;
-  padding: 0 25px 0 10px;
+  padding: 0 5px 0 25px;
   margin-bottom: 5px;
-  box-sizing: border-box;
-  width: 100%;
+  width: 80%;
 }
 
-#search-form input[name="go"] {
+#go {
   position: absolute;
-  right: 6px;
+  left: 6px;
   top: 4px;
 }
 
@@ -134,7 +125,7 @@ li.folder.on > ul {
 }
 
 .hidden {
-  display: none;
+  display: none !important;
 }
 
 #search-results ol {
@@ -146,12 +137,8 @@ li.folder.on > ul {
   background: none;
 }
 
-#search-results li > a {
+#search-results li a {
   margin-left: 0;
-}
-
-#toggle-highlight[data-toggle="on"] {
-  background-color: yellow;
 }
 
 h1 {
@@ -166,10 +153,6 @@ table.filelist {
   margin: 20px;
   width: 90%;
 
-}
-
-table.filelist tbody tr:nth-child(odd) td {
-  background-color: #eee;
 }
 
 /*noinspection CssUnusedSymbol*/
