@@ -4,8 +4,8 @@ var isIE6 = function () {
   return b.getElementsByTagName('i').length === 1
 };
 
-var registerTabOnClick = function() {
-  $(".tablinks").each(function(i, node) {
+var registerTabOnClick = function () {
+  $(".tablinks").each(function (i, node) {
     $(node).click(function (event) {
       event.stopPropagation();
       if (event.target !== node) {
@@ -54,33 +54,32 @@ var registerFolderToggle = function (root) {
 };
 
 var addTopicNodes = function (ul, topics) {
-  $(ul).empty();
+  ul.innerHTML = "";
   $(topics).each(function (i, item) {
     if (!item || item.length < 2) {
       return;
     }
 
-    var a = $("<a>");
+    var a = document.createElement("a");
     if (item[0]) {
-      a.attr("href", item[0]);
-      a.attr("target", "basefrm");
+      a.href = item[0];
+      a.target = "basefrm";
     }
-    a.text(item[1]);
+    a.innerHTML = item[1];
 
-    var li = $("<li></li>");
-    li.append(a);
+    var li = document.createElement("li");
+    li.appendChild(a);
 
     if (item.length >= 3) {
-      li.addClass("folder");
-      var childUl = $("<ul></ul>");
+      li.className = "folder";
+      var childUl = document.createElement("ul");
       if (isIE6()) {
-        childUl.addClass("hidden");
+        childUl.className = "hidden";
       }
       addTopicNodes(childUl, item[2]);
-      li.append(childUl);
+      li.appendChild(childUl);
     }
-
-    $(ul).append(li);
+    ul.appendChild(li);
   });
 };
 
@@ -94,7 +93,7 @@ var loadTopicsTree = function () {
 
       if (status === "success" && data.responseJSON) {
         var topics_tree = data.responseJSON;
-        var ulRoot = $("#topics-tree");
+        var ulRoot = $("#topics-tree")[0];
         addTopicNodes(ulRoot, topics_tree);
         registerFolderToggle(ulRoot);
         return;
@@ -123,7 +122,7 @@ var loadFiles = function () {
 
       if (status === "success" && data.responseJSON) {
         var files = data.responseJSON;
-        var ulRoot = $("#files-tree");
+        var ulRoot = $("#files-tree")[0];
         addTopicNodes(ulRoot, files);
         registerFolderToggle(ulRoot);
       }
@@ -163,12 +162,12 @@ var onSearchResultReceived = function (result) {
     var ol = $("#search-result-list");
     ol.empty();
     $(result.results).each(function (i, r) {
-      var a = $("<a>");
+      var a = $(document.createElement("a"));
       a.attr("href", r[0]);
       a.attr("target", "basefrm");
       a.text(r[1]);
       a.onclick = resetHighlight;
-      var li = $("<li></li>");
+      var li = $(document.createElement("li"));
       li.append(a);
       ol.append(li);
     });
