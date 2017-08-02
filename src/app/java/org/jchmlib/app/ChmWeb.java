@@ -375,7 +375,7 @@ class ClientHandler extends Thread {
         // resolve object
         ChmUnitInfo ui = chmFile.resolveObject(requestedFile);
 
-        String mimeType = request.getContentType();
+        String mimeType = request.getContentType(requestedFile);
         response.sendHeader(mimeType);
 
         // check to see if file exists
@@ -681,7 +681,7 @@ class ClientHandler extends Thread {
 
             // check to see if file exists
             if (f.canRead()) {
-                response.sendHeader(request.getContentType());
+                response.sendHeader(request.getContentType(requestedFile));
 
                 RandomAccessFile rf = new RandomAccessFile(filename, "r");
                 ByteBuffer in = rf.getChannel().map(
@@ -704,7 +704,7 @@ class ClientHandler extends Thread {
             return;
         }
 
-        response.sendHeader(request.getContentType());
+        response.sendHeader(request.getContentType(requestedFile));
 
         byte[] buffer = new byte[1024];
         int size;

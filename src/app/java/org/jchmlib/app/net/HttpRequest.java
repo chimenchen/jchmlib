@@ -94,12 +94,10 @@ public class HttpRequest {
     /**
      * Returns the MIME type of the body of the request.
      */
-    public String getContentType() {
+    public String getContentType(String path) {
         if (mimeType != null) {
             return mimeType;
         }
-
-        String path = getPath();
 
         // get the extension
         String ext = "";
