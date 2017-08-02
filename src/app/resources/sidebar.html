@@ -37,23 +37,25 @@
 </div>
 
 <div id="Search" class="tabcontent hidden">
-  <div id="search-form">
-    <input type="image" id="go" name="go" src="img/searchicon.png" alt="Go"
-           onclick="onSearch()">
-    <input type="text" id="query" name="query" placeholder="Search.."
-           onkeypress="return onSearchEnter(event)">
-    <div>
-      <input type="checkbox" id="regex" name="regex">
-      <label for="regex">Use regex</label>
+  <div class="search-fixed-top">
+    <div id="search-form">
+      <input type="image" id="go" name="go" src="img/searchicon.png" alt="Go"
+             onclick="onSearch()">
+      <input type="text" id="query" name="query" placeholder="Search.."
+             onkeypress="return onSearchEnter(event)">
+      <div>
+        <input type="checkbox" id="regex" name="regex">
+        <label for="regex">Use regex</label>
+      </div>
     </div>
-  </div>
-  <div id="search-loading" class="loading hidden"></div>
-  <div id="no-result-found" class="no-result-found hidden">
-    No result found.
-  </div>
-  <div id="search-results" class="search-results hidden">
+    <div id="search-loading" class="loading hidden"></div>
+    <div id="no-result-found" class="no-result-found hidden">
+      No result found.
+    </div>
     <input id="toggle-highlight" type="button" value="Toggle Highlight"
            data-toggle="off" onclick="toggleHighlight()">
+  </div>
+  <div id="search-results" class="search-results hidden">
     <ol id="search-result-list">
     </ol>
 

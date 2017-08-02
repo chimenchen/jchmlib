@@ -38,7 +38,8 @@ div.tab .button.active {
 
 .tabcontent {
   display: block;
-  padding: 40px 10px 10px 10px;
+  margin-top: 35px;
+  padding: 5px;
   border: 0;
 }
 
@@ -98,10 +99,23 @@ li.folder.on > ul {
   display: block;
 }
 
+.search-fixed-top {
+  overflow: hidden;
+  border: none;
+  position: fixed;
+  top: 30px;
+  left: 0px;
+  right: 0;
+  padding: 5px;
+  z-index: 998;
+  background-color: white;
+}
+
 #search-form {
   position: relative;
-  padding-bottom: 5px;
+  margin-top: 5px;
   margin-bottom: 5px;
+  padding-bottom: 5px;
   border-bottom: 1px solid #ccc;
 }
 
@@ -131,6 +145,7 @@ li.folder.on > ul {
 }
 
 #search-results {
+  margin-top: 80px;
   padding: 5px 0;
 }
 

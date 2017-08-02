@@ -198,6 +198,7 @@ var searchInCHM = function (query, use_regex) {
 
   $("#search-loading").removeClass("hidden");
   $("#search-results").addClass("hidden");
+  $("#toggle-highlight").addClass("hidden");
   $("#no-result-found").addClass("hidden");
 };
 
@@ -205,6 +206,7 @@ var onSearchResultReceived = function (result) {
   /** @namespace result.ok **/
   if (!result.ok) {
     $("#search-results").addClass("hidden");
+    $("#toggle-highlight").addClass("hidden");
     $("#no-result-found").removeClass("hidden");
   } else {
     /** @namespace result.results **/
