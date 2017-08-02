@@ -261,12 +261,14 @@ public class ChmIndexSearcher {
                 if (cmpResult == 0) {
                     LOG.fine("!found!");
                     ProcessWlcBlock(wlcCount, wlcSize, wlcOffset);
-                    return;
+                    if (wholeWords) {
+                        return;
+                    }
                 } else if (cmpResult > 0) {
                     if (!wholeWords && wordBuilder.startsWith(queryAsBytes)) {
                         ProcessWlcBlock(wlcCount, wlcSize, wlcOffset);
                     } else {
-                        return;
+                        break;
                     }
                 }
             }
