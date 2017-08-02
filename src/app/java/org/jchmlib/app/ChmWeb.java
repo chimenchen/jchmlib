@@ -191,8 +191,6 @@ class ClientHandler extends Thread {
     private String requestedFile;
 
     ClientHandler(Socket client_socket, ChmWeb server) {
-            // ChmFile file, String encoding,
-            // boolean isRunningFromJar, String resourcesPath) {
         client = client_socket;
         chmFile = server.chmFile;
         this.server = server;
@@ -223,6 +221,57 @@ class ClientHandler extends Thread {
         }
 
         start();
+    }
+
+    private static String quoteJSON(String str) {
+        if (str == null || str.length() == 0) {
+            return "\"\"";
+        }
+
+        int i;
+        int len = str.length();
+        StringBuilder sb = new StringBuilder(len + 4);
+        String t;
+
+        sb.append('"');
+        for (i = 0; i < len; i += 1) {
+            char c = str.charAt(i);
+            switch (c) {
+                case '\\':
+                case '"':
+                    sb.append('\\');
+                    sb.append(c);
+                    break;
+                case '/':
+                    sb.append('\\');
+                    sb.append(c);
+                    break;
+                case '\b':
+                    sb.append("\\b");
+                    break;
+                case '\t':
+                    sb.append("\\t");
+                    break;
+                case '\n':
+                    sb.append("\\n");
+                    break;
+                case '\f':
+                    sb.append("\\f");
+                    break;
+                case '\r':
+                    sb.append("\\r");
+                    break;
+                default:
+                    if (c < ' ') {
+                        t = "000" + Integer.toHexString(c);
+                        sb.append("\\u").append(t.substring(t.length() - 4));
+                    } else {
+                        sb.append(c);
+                    }
+            }
+        }
+        sb.append('"');
+        return sb.toString();
     }
 
     public void run() {
@@ -439,21 +488,19 @@ class ClientHandler extends Thread {
         }
 
         String title = tree.title.length() > 0 ? tree.title : "untitled";
-        title = title.replace("\"", "\\\"");
-
         if (!tree.children.isEmpty()) {
             if (level == 0) {
                 response.sendString("[");
             } else if (level == maxLevel) {
                 if (tree.id > 0) {
-                    response.sendLine(String.format("[\"%s\", \"%s\", \"load-by-id\", %d]",
-                            tree.path, title, tree.id));
+                    response.sendLine(String.format("[%s, %s, \"load-by-id\", %d]",
+                            quoteJSON(tree.path), quoteJSON(title), tree.id));
                 } else {
-                    response.sendLine(String.format("[\"%s\", \"%s\"]", tree.path, title));
+                    response.sendLine(String.format("[%s, %s]", quoteJSON(tree.path), quoteJSON(title)));
                 }
                 return;
             } else {
-                response.sendLine(String.format("[\"%s\", \"%s\", [", tree.path, title));
+                response.sendLine(String.format("[%s, %s, [", quoteJSON(tree.path), quoteJSON(title)));
             }
 
             int i = 0;
@@ -475,7 +522,7 @@ class ClientHandler extends Thread {
                 response.sendString("[]");
             } else {
                 String path = fixChmLink(tree.path);
-                response.sendString(String.format("[\"%s\", \"%s\"]", path, title));
+                response.sendString(String.format("[%s, %s]", quoteJSON(path), quoteJSON(title)));
             }
         }
     }
@@ -485,7 +532,7 @@ class ClientHandler extends Thread {
             DirChmEnumerator enumerator = new DirChmEnumerator();
             chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, enumerator);
             server.filesTree = buildFilesTree(enumerator.files);
-            server.totalFiles  = enumerator.files.size();
+            server.totalFiles = enumerator.files.size();
         }
         ChmTopicsTree tree = server.filesTree;
         int maxLevel = server.totalFiles > 10000 ? 2 : 100;
@@ -587,12 +634,10 @@ class ClientHandler extends Thread {
                     String url = "/" + entry.getKey();
                     String topic = entry.getValue();
                     url = fixChmLink(url);
-                    url = url.replace("\"", "\\\"");
-                    topic = topic.replace("\"", "\\\"");
                     if (i > 0) {
                         response.sendLine(",");
                     }
-                    response.sendString(String.format("[\"%s\", \"%s\"]", url, topic));
+                    response.sendString(String.format("[%s, %s]", quoteJSON(url), quoteJSON(topic)));
                     i++;
                 }
                 response.sendLine("]}");
@@ -616,13 +661,11 @@ class ClientHandler extends Thread {
             int i = 0;
             for (String url : results) {
                 String topic = chmFile.getTitleOfObject(url);
-                url = url.replace("\"", "\\\"");
                 url = fixChmLink(url);
-                topic = topic.replace("\"", "\\\"");
                 if (i > 0) {
                     response.sendLine(",");
                 }
-                response.sendLine(String.format("[\"%s\", \"%s\"]", url, topic));
+                response.sendString(String.format("[%s, %s]", quoteJSON(url), quoteJSON(topic)));
                 i++;
             }
             response.sendLine("]}");
