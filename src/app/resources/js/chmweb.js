@@ -215,7 +215,7 @@ var onSearchResultReceived = function (result) {
       a.attr("href", r[0]);
       a.attr("target", "basefrm");
       a.text(r[1]);
-      a.onclick = resetHighlight;
+      a.on("click", resetHighlight);
       var li = $(document.createElement("li"));
       li.append(a);
       ol.append(li);

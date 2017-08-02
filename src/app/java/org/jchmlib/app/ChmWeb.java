@@ -589,10 +589,10 @@ class ClientHandler extends Thread {
                     url = fixChmLink(url);
                     url = url.replace("\"", "\\\"");
                     topic = topic.replace("\"", "\\\"");
-                    response.sendString(String.format("[\"%s\", \"%s\"]", url, topic));
-                    if (i < results.size() - 1) {
+                    if (i > 0) {
                         response.sendLine(",");
                     }
+                    response.sendString(String.format("[\"%s\", \"%s\"]", url, topic));
                     i++;
                 }
                 response.sendLine("]}");
@@ -613,14 +613,19 @@ class ClientHandler extends Thread {
             }
 
             response.sendLine("{\"ok\": true, \"results\":[");
+            int i = 0;
             for (String url : results) {
                 String topic = chmFile.getTitleOfObject(url);
                 url = url.replace("\"", "\\\"");
                 url = fixChmLink(url);
                 topic = topic.replace("\"", "\\\"");
-                response.sendLine(String.format("[\"%s\", \"%s\"],", url, topic));
+                if (i > 0) {
+                    response.sendLine(",");
+                }
+                response.sendLine(String.format("[\"%s\", \"%s\"]", url, topic));
+                i++;
             }
-            response.sendLine("],}");
+            response.sendLine("]}");
         } catch (Exception e) {
             LOG.fine("Failed to handle search:  " + e);
         }
