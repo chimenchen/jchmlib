@@ -36,7 +36,7 @@ public class ChmSearchEnumerator implements ChmEnumerator {
     private final long startTimestamp;
     private long filesSearched;
 
-    @SuppressWarnings("ConstantConditions")
+    @SuppressWarnings({"ConstantConditions", "SameParameterValue"})
     public ChmSearchEnumerator(ChmFile chmFile, String query, int maxResults) {
         startTimestamp = System.currentTimeMillis() / 1000;
         filesSearched = 0;

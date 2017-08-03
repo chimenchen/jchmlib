@@ -4,15 +4,16 @@
 
 package org.jchmlib.app;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.RandomAccessFile;
+import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -42,7 +43,7 @@ public class ChmWeb extends Thread {
     String resourcesPath;
     ChmTopicsTree filesTree = null;
     int totalFiles = 0;
-    ChmIndexEngine engine = null;
+    private ChmIndexEngine engine = null;
     private ServerSocket listen_socket;
     private String chmFilePath = null;
 
@@ -66,7 +67,6 @@ public class ChmWeb extends Thread {
 
         return "UTF8";
     }
-
 
     public boolean serveChmFile(int port, String chmFileName) {
         if (getState() == State.RUNNABLE) {  // already started
@@ -174,6 +174,53 @@ public class ChmWeb extends Thread {
         String classJar = this.getClass().getResource("/" + className + ".class").toString();
         return classJar.startsWith("jar:");
     }
+
+    InputStream getResourceAsStream(String requestedFile) {
+        try {
+            if (resourcesPath != null) {
+                File f = new File(resourcesPath, requestedFile);
+                if (f.canRead()) {
+                    return new FileInputStream(f);
+                } else if (!isRunningFromJar) {
+                    return null;
+                }
+            }
+
+            return ChmWeb.class.getResourceAsStream("/" + requestedFile);
+        } catch (Exception ignored) {
+            LOG.info("Failed to get resource " + requestedFile + ": " + ignored);
+            return null;
+        }
+    }
+
+    public ChmIndexEngine getIndexEngine() {
+        if (engine == null) {
+            engine = new ChmIndexEngine();
+            addStopWordsToIndexEngine();
+        }
+        return engine;
+    }
+
+    private void addStopWordsToIndexEngine() {
+        InputStream in = getResourceAsStream("stopwords.txt");
+        if (in == null) {
+            return;
+        }
+        try {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+            String word;
+            while ((word = reader.readLine()) != null) {
+                engine.addStopWords(word);
+            }
+        } catch (Exception ignored) {
+            LOG.info("Error adding stop words: " + ignored);
+        } finally {
+            try {
+                in.close();
+            } catch (Throwable ignore) {
+            }
+        }
+    }
 }
 
 /**
@@ -186,8 +233,8 @@ class ClientHandler extends Thread {
     private final Socket client;
     private final ChmFile chmFile;
     private final ChmWeb server;
-    private final boolean isRunningFromJar;
-    private final String resourcesPath;
+    // --Commented out by Inspection (17/8/3 21:56):private final boolean isRunningFromJar;
+    // --Commented out by Inspection (17/8/3 21:56):private final String resourcesPath;
     private String encoding;
     private HttpRequest request;
     private HttpResponse response;
@@ -198,8 +245,8 @@ class ClientHandler extends Thread {
         chmFile = server.chmFile;
         this.server = server;
         this.encoding = server.encoding;
-        this.isRunningFromJar = server.isRunningFromJar;
-        this.resourcesPath = server.resourcesPath;
+        // this.isRunningFromJar = server.isRunningFromJar;
+        // this.resourcesPath = server.resourcesPath;
 
         try {
             request = new HttpRequest(client.getInputStream(), this.encoding);
@@ -407,13 +454,13 @@ class ClientHandler extends Thread {
             deliverTopicsTree();
         } else if (requestedFile.equalsIgnoreCase("files.json")) {
             deliverFilesTree();
-        } else if (requestedFile.equalsIgnoreCase("search.json")) { //FIXME
+        } else if (requestedFile.equalsIgnoreCase("search.json")) {
             deliverUnifiedSearch();
         } else if (requestedFile.equalsIgnoreCase("words.txt")) {
             deliverWords();
         } else if (requestedFile.equalsIgnoreCase("index.json")) {
-            deliverCreateIndex();
-        } else if (requestedFile.equalsIgnoreCase("search3.json")) { //FIXME
+            deliverBuildIndex();
+        } else if (requestedFile.equalsIgnoreCase("search3.json")) {
             deliverSearch3();
         } else {
             deliverResource(requestedFile);
@@ -630,19 +677,23 @@ class ClientHandler extends Thread {
         }
         LOG.fine(String.format("query: %s, regex: %s", query, useRegex));
 
-        response.sendHeader("application/json");
-
-        ChmIndexSearcher searcher = chmFile.getIndexSearcher();
-        if (!useRegex && !searcher.notSearchable) {
-            searcher.search(query, false, false);
-            HashMap<String, String> results = searcher.getResults();
-
-            deliverSearchResults(results);
-            return;
+        if (!useRegex) {
+            ChmIndexSearcher searcher = chmFile.getIndexSearcher();
+            if (!searcher.notSearchable) {
+                HashMap<String, String> results = searcher.search(query, false, false, 0);
+                deliverSearchResults(results);
+                return;
+            }
+            ChmIndexEngine engine = server.getIndexEngine();
+            if (engine.isSearchable()) {
+                HashMap<String, String> results = engine.search(query, true, false, 0);
+                deliverSearchResults(results);
+                return;
+            }
         }
 
         try {
-            ChmSearchEnumerator enumerator = new ChmSearchEnumerator(chmFile, query);
+            ChmSearchEnumerator enumerator = new ChmSearchEnumerator(chmFile, query, 0);
             chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, enumerator);
             HashMap<String, String> results = enumerator.getResults();
             deliverSearchResults(results);
@@ -652,6 +703,7 @@ class ClientHandler extends Thread {
     }
 
     private void deliverSearchResults(HashMap<String, String> results) {
+        response.sendHeader("application/json");
         if (results != null && results.size() > 0) {
             response.sendLine("{\"ok\": true, \"results\":[");
             int i = 0;
@@ -673,29 +725,7 @@ class ClientHandler extends Thread {
     }
 
     private void deliverResource(String requestedFile) throws IOException {
-        if (resourcesPath != null) {
-            String filename = new File(resourcesPath, requestedFile).toString();
-            File f = new File(filename);
-
-            // check to see if file exists
-            if (f.canRead()) {
-                response.sendHeader(request.getContentType(requestedFile));
-
-                RandomAccessFile rf = new RandomAccessFile(filename, "r");
-                ByteBuffer in = rf.getChannel().map(
-                        FileChannel.MapMode.READ_ONLY, 0, rf.length());
-                response.write(in, (int) rf.length());
-                return;
-            } else if (!isRunningFromJar) {
-                response.sendHeader("text/plain");
-                response.sendString("404: not found: " + f.getAbsolutePath());
-                return;
-            }
-        }
-
-        assert isRunningFromJar;
-
-        InputStream in = ChmWeb.class.getResourceAsStream("/" + requestedFile);
+        InputStream in = server.getResourceAsStream(requestedFile);
         if (in == null) {
             response.sendHeader("text/plain");
             response.sendString("404: not found: " + requestedFile);
@@ -708,6 +738,11 @@ class ClientHandler extends Thread {
         int size;
         while ((size = in.read(buffer)) != -1) {
             response.write(buffer, 0, size);
+        }
+
+        try {
+            in.close();
+        } catch (Throwable ignore) {
         }
     }
 
@@ -733,11 +768,17 @@ class ClientHandler extends Thread {
         }
     }
 
-    private void deliverCreateIndex() {
-        if (server.engine == null) {
-            server.engine = new ChmIndexEngine();
-            server.engine.buildIndex(chmFile);
+    private void deliverBuildIndex() {
+        ChmIndexEngine engine = server.getIndexEngine();
+        if (engine.getBuildIndexStep() < 0) {
+            new Thread() {
+                public void run() {
+                    engine.buildIndex(chmFile, server.getChmFilePath());
+                }
+            }.start();
         }
+        response.sendHeader("application/json");
+        response.sendLine(String.format("{step: %d}", engine.getBuildIndexStep()));
     }
 
     private void deliverSearch3() {
@@ -748,13 +789,12 @@ class ClientHandler extends Thread {
         }
         LOG.fine(String.format("query: %s", query));
 
-        if (server.engine == null) {
+        ChmIndexEngine engine = server.getIndexEngine();
+        if (!engine.isSearchable()) {
             return;
         }
 
-        response.sendHeader("application/json");
-
-        HashMap<String, String> results = server.engine.search(query);
+        HashMap<String, String> results = engine.search(query, true, false, 0);
         deliverSearchResults(results);
     }
 }

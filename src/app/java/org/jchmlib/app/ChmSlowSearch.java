@@ -17,7 +17,7 @@ public class ChmSlowSearch {
 
         ChmFile chmFile = new ChmFile(argv[0]);
 
-        ChmSearchEnumerator enumerator = new ChmSearchEnumerator(chmFile, argv[1]);
+        ChmSearchEnumerator enumerator = new ChmSearchEnumerator(chmFile, argv[1], 0);
         chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, enumerator);
         HashMap<String, String> results = enumerator.getResults();
         if (results.size() == 0) {

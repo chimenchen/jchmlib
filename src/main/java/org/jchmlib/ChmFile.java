@@ -857,8 +857,7 @@ public class ChmFile {
     public HashMap<String, String> indexSearch(
             String text, boolean wholeWords, boolean titlesOnly) {
         ChmIndexSearcher searcher = getIndexSearcher();
-        searcher.search(text, wholeWords, titlesOnly);
-        return searcher.getResults();
+        return searcher.search(text, wholeWords, titlesOnly, 0);
     }
 
     public ChmIndexSearcher getIndexSearcher() {
