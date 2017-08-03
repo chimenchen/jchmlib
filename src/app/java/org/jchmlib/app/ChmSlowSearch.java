@@ -1,7 +1,8 @@
 package org.jchmlib.app;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import org.jchmlib.ChmFile;
 import org.jchmlib.ChmSearchEnumerator;
 
@@ -18,13 +19,15 @@ public class ChmSlowSearch {
 
         ChmSearchEnumerator enumerator = new ChmSearchEnumerator(chmFile, argv[1]);
         chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, enumerator);
-        ArrayList<String> results = enumerator.getResults();
+        HashMap<String, String> results = enumerator.getResults();
         if (results.size() == 0) {
             System.out.println("No match.");
             return;
         }
-        for (String path : results) {
-            System.out.println(path);
+        for (Map.Entry<String, String> entry : results.entrySet()) {
+            String url = entry.getKey();
+            String topic = entry.getValue();
+            System.out.println(url + " => " + topic);
         }
     }
 }

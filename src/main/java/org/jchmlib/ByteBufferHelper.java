@@ -13,7 +13,7 @@ import java.util.logging.Logger;
 /**
  * ByteBufferHelper provides some ByteBuffer-relating methods.
  */
-class ByteBufferHelper {
+public class ByteBufferHelper {
 
     private static final Logger LOG = Logger.getLogger(ByteBufferHelper.class.getName());
 
@@ -77,7 +77,7 @@ class ByteBufferHelper {
      * Leaves the position of the ByteBuffer unchanged.
      */
     public static String peakAsString(ByteBuffer buf, String encoding) {
-        if (buf.remaining() == 0) {
+        if (buf == null || buf.remaining() == 0) {
             return "";
         }
         // First check to see if the input buffer has a backing array;

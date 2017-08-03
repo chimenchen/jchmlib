@@ -7,6 +7,8 @@ package org.jchmlib;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -28,17 +30,19 @@ import java.util.regex.Pattern;
 public class ChmSearchEnumerator implements ChmEnumerator {
 
     private final ChmFile chmFile;
+    private final int maxResults;
     private final Collection<String> keywords;
     private final ArrayList<String> results;
     private final long startTimestamp;
     private long filesSearched;
 
     @SuppressWarnings("ConstantConditions")
-    public ChmSearchEnumerator(ChmFile chmFile, String query) {
+    public ChmSearchEnumerator(ChmFile chmFile, String query, int maxResults) {
         startTimestamp = System.currentTimeMillis() / 1000;
         filesSearched = 0;
 
         this.chmFile = chmFile;
+        this.maxResults = maxResults;
         results = new ArrayList<String>();
         keywords = new ArrayList<String>();
 
@@ -116,7 +120,7 @@ public class ChmSearchEnumerator implements ChmEnumerator {
             Matcher m = p.matcher(data);
             if (m.find()) {
                 results.add(ui.path);
-                if (results.size() > 100) {
+                if (maxResults > 0 && results.size() > maxResults) {
                     throw new ChmStopEnumeration();
                 }
                 return;
@@ -124,7 +128,12 @@ public class ChmSearchEnumerator implements ChmEnumerator {
         }
     }
 
-    public ArrayList<String> getResults() {
-        return results;
+    public HashMap<String, String> getResults() {
+        HashMap<String, String> finalResults = new LinkedHashMap<String, String>();
+        for (String url : results) {
+            String topic = chmFile.getTitleOfObject(url);
+            finalResults.put(url, topic);
+        }
+        return finalResults;
     }
 }

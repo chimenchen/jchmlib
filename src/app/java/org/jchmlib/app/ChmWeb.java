@@ -15,9 +15,11 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
-import org.jchmlib.ChmEnumerator;
+import org.jchmlib.ByteBufferHelper;
+import org.jchmlib.ChmCollectFilesEnumerator;
 import org.jchmlib.ChmFile;
 import org.jchmlib.ChmIndexSearcher;
 import org.jchmlib.ChmSearchEnumerator;
@@ -40,6 +42,7 @@ public class ChmWeb extends Thread {
     String resourcesPath;
     ChmTopicsTree filesTree = null;
     int totalFiles = 0;
+    ChmIndexEngine engine = null;
     private ServerSocket listen_socket;
     private String chmFilePath = null;
 
@@ -348,7 +351,7 @@ class ClientHandler extends Thread {
             response.sendLine("<td></td>");
         }
 
-        DirChmEnumerator enumerator = new DirChmEnumerator();
+        ChmCollectFilesEnumerator enumerator = new ChmCollectFilesEnumerator();
         chmFile.enumerateDir(requestedFile, ChmFile.CHM_ENUMERATE_USER, enumerator);
 
         for (ChmUnitInfo ui : enumerator.files) {
@@ -404,8 +407,14 @@ class ClientHandler extends Thread {
             deliverTopicsTree();
         } else if (requestedFile.equalsIgnoreCase("files.json")) {
             deliverFilesTree();
-        } else if (requestedFile.equalsIgnoreCase("search.json")) {
+        } else if (requestedFile.equalsIgnoreCase("search.json")) { //FIXME
             deliverUnifiedSearch();
+        } else if (requestedFile.equalsIgnoreCase("words.txt")) {
+            deliverWords();
+        } else if (requestedFile.equalsIgnoreCase("index.json")) {
+            deliverCreateIndex();
+        } else if (requestedFile.equalsIgnoreCase("search3.json")) { //FIXME
+            deliverSearch3();
         } else {
             deliverResource(requestedFile);
         }
@@ -496,11 +505,13 @@ class ClientHandler extends Thread {
                     response.sendLine(String.format("[%s, %s, \"load-by-id\", %d]",
                             quoteJSON(tree.path), quoteJSON(title), tree.id));
                 } else {
-                    response.sendLine(String.format("[%s, %s]", quoteJSON(tree.path), quoteJSON(title)));
+                    response.sendLine(
+                            String.format("[%s, %s]", quoteJSON(tree.path), quoteJSON(title)));
                 }
                 return;
             } else {
-                response.sendLine(String.format("[%s, %s, [", quoteJSON(tree.path), quoteJSON(title)));
+                response.sendLine(
+                        String.format("[%s, %s, [", quoteJSON(tree.path), quoteJSON(title)));
             }
 
             int i = 0;
@@ -529,7 +540,7 @@ class ClientHandler extends Thread {
 
     private void deliverFilesTree() {
         if (server.filesTree == null) {
-            DirChmEnumerator enumerator = new DirChmEnumerator();
+            ChmCollectFilesEnumerator enumerator = new ChmCollectFilesEnumerator();
             chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, enumerator);
             server.filesTree = buildFilesTree(enumerator.files);
             server.totalFiles = enumerator.files.size();
@@ -617,7 +628,6 @@ class ClientHandler extends Thread {
         if (sUseRegex != null && (sUseRegex.equals("1") || sUseRegex.equalsIgnoreCase("true"))) {
             useRegex = true;
         }
-
         LOG.fine(String.format("query: %s, regex: %s", query, useRegex));
 
         response.sendHeader("application/json");
@@ -627,50 +637,38 @@ class ClientHandler extends Thread {
             searcher.search(query, false, false);
             HashMap<String, String> results = searcher.getResults();
 
-            if (results != null && results.size() > 0) {
-                response.sendLine("{\"ok\": true, \"results\":[");
-                int i = 0;
-                for (Map.Entry<String, String> entry : results.entrySet()) {
-                    String url = "/" + entry.getKey();
-                    String topic = entry.getValue();
-                    url = fixChmLink(url);
-                    if (i > 0) {
-                        response.sendLine(",");
-                    }
-                    response.sendString(String.format("[%s, %s]", quoteJSON(url), quoteJSON(topic)));
-                    i++;
-                }
-                response.sendLine("]}");
-            } else {
-                response.sendLine("{\"ok\": false}");
-            }
-
+            deliverSearchResults(results);
             return;
         }
 
         try {
             ChmSearchEnumerator enumerator = new ChmSearchEnumerator(chmFile, query);
             chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, enumerator);
-            ArrayList<String> results = enumerator.getResults();
-            if (results.size() == 0) {
-                response.sendLine("{\"ok\": false}");
-                return;
-            }
+            HashMap<String, String> results = enumerator.getResults();
+            deliverSearchResults(results);
+        } catch (Exception e) {
+            LOG.fine("Failed to handle search:  " + e);
+        }
+    }
 
+    private void deliverSearchResults(HashMap<String, String> results) {
+        if (results != null && results.size() > 0) {
             response.sendLine("{\"ok\": true, \"results\":[");
             int i = 0;
-            for (String url : results) {
-                String topic = chmFile.getTitleOfObject(url);
+            for (Map.Entry<String, String> entry : results.entrySet()) {
+                String url = entry.getKey();
+                String topic = entry.getValue();
                 url = fixChmLink(url);
                 if (i > 0) {
                     response.sendLine(",");
                 }
-                response.sendString(String.format("[%s, %s]", quoteJSON(url), quoteJSON(topic)));
+                response.sendString(
+                        String.format("[%s, %s]", quoteJSON(url), quoteJSON(topic)));
                 i++;
             }
             response.sendLine("]}");
-        } catch (Exception e) {
-            LOG.fine("Failed to handle search:  " + e);
+        } else {
+            response.sendLine("{\"ok\": false}");
         }
     }
 
@@ -712,17 +710,52 @@ class ClientHandler extends Thread {
             response.write(buffer, 0, size);
         }
     }
-}
 
-class DirChmEnumerator implements ChmEnumerator {
+    private void deliverWords() {
+        String url = request.getParameter("p");
+        if (url == null) {
+            return;
+        }
+        // resolve object
+        ChmUnitInfo ui = chmFile.resolveObject("/" + url);
 
-    final ArrayList<ChmUnitInfo> files;
+        // check to see if file exists
+        if (ui != null) {
+            response.sendHeader("text/plain");
 
-    DirChmEnumerator() {
-        files = new ArrayList<ChmUnitInfo>();
+            ByteBuffer buf = chmFile.retrieveObject(ui);
+            String text = ByteBufferHelper.peakAsString(buf, chmFile.getEncoding());
+            ChmIndexEngine parser = new ChmIndexEngine();
+            List<String> words = parser.parse(text);
+            for (String word : words) {
+                response.sendLine(word);
+            }
+        }
     }
 
-    public void enumerate(ChmUnitInfo ui) {
-        files.add(ui);
+    private void deliverCreateIndex() {
+        if (server.engine == null) {
+            server.engine = new ChmIndexEngine();
+            server.engine.buildIndex(chmFile);
+        }
+    }
+
+    private void deliverSearch3() {
+        String query = request.getParameter("q");
+        if (query == null) {
+            LOG.fine("empty query");
+            return;
+        }
+        LOG.fine(String.format("query: %s", query));
+
+        if (server.engine == null) {
+            return;
+        }
+
+        response.sendHeader("application/json");
+
+        HashMap<String, String> results = server.engine.search(query);
+        deliverSearchResults(results);
     }
 }
+

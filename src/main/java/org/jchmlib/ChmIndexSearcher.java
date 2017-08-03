@@ -61,7 +61,7 @@ public class ChmIndexSearcher {
      * @return a hash map from url to title, or null if the CHM file is has no built-in index
      * ({@code notSearchable == false}) or there is no result found.
      */
-    public HashMap<String, String> getResults() {
+    public HashMap<String, String> getResults(int maxResults) {
         if (results == null || results.size() == 0) {
             return null;
         }
@@ -79,7 +79,10 @@ public class ChmIndexSearcher {
         HashMap<String, String> finalResults = new LinkedHashMap<String, String>();
         for (IndexSearchResult result : resultList) {
             LOG.fine("#" + result.totalFrequency + " " + result.topic + " <=> " + result.url);
-            finalResults.put(result.url, result.topic);
+            finalResults.put("/" + result.url, result.topic);
+            if (maxResults > 0 & finalResults.size() >= maxResults) {
+                break;
+            }
         }
         return finalResults;
     }
@@ -426,7 +429,7 @@ public class ChmIndexSearcher {
             return true;
         }
 
-        if (results == null || results.size() < 300) {
+        if (results == null || results.size() < 5000) {
             if (results == null) {
                 results = new LinkedHashMap<String, IndexSearchResult>();
             }
@@ -442,7 +445,6 @@ public class ChmIndexSearcher {
                         Long lastLocation = location - 1;
                         if (result.locationCodes.contains(lastLocation)) {
                             newLocationCodes.add(location);
-                            break;
                         }
                     }
                     LOG.fine(String.format("subQuery(%d) %s: %s %s",

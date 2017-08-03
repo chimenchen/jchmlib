@@ -460,14 +460,25 @@ public class ChmFile {
         return null;
     }
 
+    public String retrieveObjectAsString(ChmUnitInfo ui) {
+        ByteBuffer buf = retrieveObject(ui);
+        if (buf == null) {
+            return null;
+        }
+        return ByteBufferHelper.peakAsString(buf, encoding);
+    }
+
     /**
      * Retrieve an object.
      *
      * @param ui an abstract representation of the object.
-     * @return a ByteBuffer holding the content of the object,
-     * or null if ui is invalid or there is error when retrieving the object.
+     * @return a ByteBuffer holding the content of the object, or null if ui is invalid or there is
+     * error when retrieving the object.
      */
     public ByteBuffer retrieveObject(ChmUnitInfo ui) {
+        if (ui == null) {
+            return null;
+        }
         return retrieveObject(ui, 0, ui.length);
     }
 
@@ -477,11 +488,13 @@ public class ChmFile {
      * @param ui an abstract representation of the object.
      * @param addr starting address(relative to start of the object)
      * @param len length(in bytes) to be retrieved.
-     *
-     * @return a ByteBuffer holding (part of) the content of the object,
-     * or null if ui is invalid or there is error when retrieving the object.
+     * @return a ByteBuffer holding (part of) the content of the object, or null if ui is invalid or
+     * there is error when retrieving the object.
      */
     public ByteBuffer retrieveObject(ChmUnitInfo ui, long addr, long len) {
+        if (ui == null) {
+            return null;
+        }
 
         ByteBuffer buf = null;
 
@@ -804,8 +817,7 @@ public class ChmFile {
      * Gets the title of a given path from topics tree.
      *
      * @param path path of a Chm object (namely, a chm unit).
-     * @return the title of the Chm object,
-     * or return the path if no topic found for the object.
+     * @return the title of the Chm object, or return the path if no topic found for the object.
      */
     public String getTitleOfObject(String path) {
         if (pathToTitle == null && tree == null) {
@@ -822,6 +834,7 @@ public class ChmFile {
     /**
      * Some files have large topics tree.
      * You can release it once it is no longer needed.
+     *
      * @param forceRelease release it even when the topics tree is not large.
      */
     @SuppressWarnings("SameParameterValue")
