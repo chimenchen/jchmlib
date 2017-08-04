@@ -2,6 +2,7 @@ package org.jchmlib;
 
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -16,7 +17,7 @@ import java.util.logging.Logger;
 public abstract class AbstractIndexSearcher {
 
     private static final Logger LOG = Logger.getLogger(ChmIndexSearcher.class.getName());
-    protected final Set<String> stopWords = new HashSet<>();
+    protected final Set<String> stopWords = new HashSet<String>();
     protected String wordChars = "";
 
     @SuppressWarnings("unused")
@@ -29,7 +30,7 @@ public abstract class AbstractIndexSearcher {
     }
 
     protected abstract List<SearchResult> searchSingleWord(
-            String word, boolean wholeWords, boolean titlesOnly);
+            String word, boolean wholeWords, boolean titlesOnly, Set<String> lastRunFiles);
 
     protected abstract void fixTopic(SearchResult result);
 
@@ -43,24 +44,27 @@ public abstract class AbstractIndexSearcher {
         } else {
             SearchResult result = results.get(key);
             if (isPhraseStart) {
-                result.totalFrequency += doc.locations.size();
+                result.totalFrequency += doc.totalFrequency;
+                result.lastFrequency = doc.totalFrequency;
                 result.locations = doc.locations;
                 result.hitCount += 1;
             } else {
-                Set<Long> newLocationCodes = new LinkedHashSet<Long>();
-                for (Long location : doc.locations) {
-                    Long lastLocation = location - 1;
+                Set<Integer> newLocationCodes = new LinkedHashSet<Integer>();
+                for (Integer location : doc.locations) {
+                    Integer lastLocation = location - 1;
                     if (result.locations.contains(lastLocation)) {
                         newLocationCodes.add(location);
                     }
                 }
-                LOG.fine(String.format("SubQuery %s, %s", doc.url, doc.topic != null ? doc.topic : ""));
-                LOG.fine("Locations[last]: " + result.locations);
-                LOG.fine("Locations[cur]:  " + doc.locations);
-                LOG.fine("Locations[new]:  " + newLocationCodes);
                 if (newLocationCodes.size() > 0) {
+                    // LOG.fine(String.format("SubQuery %s, %s", doc.url, doc.topic != null ? doc.topic : ""));
+                    // LOG.fine("Locations[last]: " + result.locations);
+                    // LOG.fine("Locations[cur]:  " + doc.locations);
+                    // LOG.fine("Locations[new]:  " + newLocationCodes);
                     result.locations = newLocationCodes;
-                    result.totalFrequency += newLocationCodes.size();
+                    result.totalFrequency -= result.lastFrequency;
+                    result.lastFrequency = newLocationCodes.size();
+                    result.totalFrequency += result.lastFrequency;
                     result.hitCount += 1;
                 }
             }
@@ -70,15 +74,21 @@ public abstract class AbstractIndexSearcher {
     @SuppressWarnings("SameParameterValue")
     public HashMap<String, String> search(String originalQuery,
             boolean wholeWords, boolean titlesOnly, int maxResults) {
-        HashMap<String, SearchResult> results = new LinkedHashMap<>();
+        HashMap<String, SearchResult> results = new LinkedHashMap<String, SearchResult>();
 
         List<SubQuery> subQueries = splitQuery(originalQuery);
+
+        Set<String> lastRunFiles = new HashSet<String>();
+
         int subQueryStep = -1;
         for (SubQuery subQuery : subQueries) {
             subQueryStep++;
 
+            LOG.fine(String.format("SubQuery[%d]: %s, %s, %s",
+                    subQueryStep, subQuery.queryString, subQuery.isPhraseStart, subQuery.isInPhrase));
             List<SearchResult> documentsForWord = searchSingleWord(
-                    subQuery.queryString, subQuery.isInPhrase || wholeWords, titlesOnly);
+                    subQuery.queryString, subQuery.isInPhrase || wholeWords, titlesOnly,
+                    lastRunFiles);
             if (documentsForWord == null || documentsForWord.size() == 0) {
                 return null;
             }
@@ -102,6 +112,7 @@ public abstract class AbstractIndexSearcher {
                     }
                 }
             }
+            lastRunFiles = results.keySet();
         }
 
         if (results.size() == 0) {
@@ -109,7 +120,7 @@ public abstract class AbstractIndexSearcher {
         }
 
         ArrayList<SearchResult> resultList = new ArrayList<SearchResult>(results.values());
-        resultList.sort(new Comparator<SearchResult>() {
+        Collections.sort(resultList, new Comparator<SearchResult>() {
             @Override
             public int compare(SearchResult r1, SearchResult r2) {
                 return new Integer(r2.totalFrequency).compareTo(r1.totalFrequency);
@@ -203,14 +214,16 @@ public abstract class AbstractIndexSearcher {
     protected class SearchResult {
         public final String url;
         public String topic;
-        public Set<Long> locations;
+        public Set<Integer> locations;
+        public int lastFrequency;
         public int totalFrequency;
         public int hitCount;
-        public SearchResult(String url, String topic, Set<Long> locations) {
+        public SearchResult(String url, String topic, Set<Integer> locations, int totalFrequency) {
             this.url = url;
             this.topic = topic;
             this.locations = locations;
-            totalFrequency = locations.size();
+            this.lastFrequency = totalFrequency;
+            this.totalFrequency = totalFrequency;
             hitCount = 1;
         }
     }

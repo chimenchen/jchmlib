@@ -104,11 +104,11 @@ public class ChmIndexSearcher extends AbstractIndexSearcher {
      */
     @Override
     protected List<SearchResult> searchSingleWord(
-            String query, boolean wholeWords, boolean titlesOnly) {
+            String query, boolean wholeWords, boolean titlesOnly, Set<String> lastRunFiles) {
         if (notSearchable || query == null || query.equals("")) {
             return null;
         }
-        List<SearchResult> results = new ArrayList<>();
+        List<SearchResult> results = new ArrayList<SearchResult>();
         try {
             searchWithoutCatch(query, wholeWords, titlesOnly, results);
         } catch (IOException ignored) {
@@ -278,12 +278,12 @@ public class ChmIndexSearcher extends AbstractIndexSearcher {
             // locations of the word in the topics
             long locationCodeCount = bitReader.getSrInt(
                     ftsHeader.codeCountS, ftsHeader.codeCountR);
-            Set<Long> locationCodes = new LinkedHashSet<Long>();
+            Set<Integer> locationCodes = new LinkedHashSet<Integer>();
             long lastLocationCode = 0;
             for (int j = 0; j < locationCodeCount; j++) {
                 long locationCode = bitReader.getSrInt(ftsHeader.locCodesS, ftsHeader.locCodesR);
                 locationCode += lastLocationCode;
-                locationCodes.add(locationCode);
+                locationCodes.add((int) locationCode);
                 lastLocationCode = locationCode;
             }
 
@@ -330,10 +330,10 @@ public class ChmIndexSearcher extends AbstractIndexSearcher {
         }
     }
 
-    private void addResult(String url, String topic, Set<Long> locations,
+    private void addResult(String url, String topic, Set<Integer> locations,
             List<SearchResult> results) {
         assert results != null;
-        results.add(new SearchResult("/" + url, topic, locations));
+        results.add(new SearchResult("/" + url, topic, locations, locations.size()));
     }
 
     class WordBuilder {

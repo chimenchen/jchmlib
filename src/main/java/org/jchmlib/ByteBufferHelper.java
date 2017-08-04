@@ -13,7 +13,7 @@ import java.util.logging.Logger;
 /**
  * ByteBufferHelper provides some ByteBuffer-relating methods.
  */
-public class ByteBufferHelper {
+class ByteBufferHelper {
 
     private static final Logger LOG = Logger.getLogger(ByteBufferHelper.class.getName());
 

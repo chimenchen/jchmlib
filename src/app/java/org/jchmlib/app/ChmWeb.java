@@ -16,10 +16,8 @@ import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
-import org.jchmlib.ByteBufferHelper;
 import org.jchmlib.ChmCollectFilesEnumerator;
 import org.jchmlib.ChmFile;
 import org.jchmlib.ChmIndexSearcher;
@@ -195,8 +193,13 @@ public class ChmWeb extends Thread {
 
     public ChmIndexEngine getIndexEngine() {
         if (engine == null) {
-            engine = new ChmIndexEngine();
+            engine = new ChmIndexEngine(chmFile, chmFilePath);
             addStopWordsToIndexEngine();
+            new Thread() {
+                public void run() {
+                    engine.readIndex();
+                }
+            }.start();
         }
         return engine;
     }
@@ -456,8 +459,6 @@ class ClientHandler extends Thread {
             deliverFilesTree();
         } else if (requestedFile.equalsIgnoreCase("search.json")) {
             deliverUnifiedSearch();
-        } else if (requestedFile.equalsIgnoreCase("words.txt")) {
-            deliverWords();
         } else if (requestedFile.equalsIgnoreCase("index.json")) {
             deliverBuildIndex();
         } else if (requestedFile.equalsIgnoreCase("search3.json")) {
@@ -526,7 +527,7 @@ class ClientHandler extends Thread {
 
     private void deliverTopicsTree() {
         ChmTopicsTree tree = chmFile.getTopicsTree();
-        int maxLevel = tree.id > 10000 ? 2 : 100;
+        int maxLevel = tree != null && tree.id > 10000 ? 2 : 100;
 
         tree = allowSubtreeRequest(tree);
         if (tree == null) {
@@ -677,23 +678,25 @@ class ClientHandler extends Thread {
         }
         LOG.fine(String.format("query: %s, regex: %s", query, useRegex));
 
+        int maxResults = 300;
+
         if (!useRegex) {
             ChmIndexSearcher searcher = chmFile.getIndexSearcher();
             if (!searcher.notSearchable) {
-                HashMap<String, String> results = searcher.search(query, false, false, 0);
+                HashMap<String, String> results = searcher.search(query, false, false, maxResults);
                 deliverSearchResults(results);
                 return;
             }
             ChmIndexEngine engine = server.getIndexEngine();
             if (engine.isSearchable()) {
-                HashMap<String, String> results = engine.search(query, true, false, 0);
+                HashMap<String, String> results = engine.search(query, true, false, maxResults);
                 deliverSearchResults(results);
                 return;
             }
         }
 
         try {
-            ChmSearchEnumerator enumerator = new ChmSearchEnumerator(chmFile, query, 0);
+            ChmSearchEnumerator enumerator = new ChmSearchEnumerator(chmFile, query, maxResults);
             chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, enumerator);
             HashMap<String, String> results = enumerator.getResults();
             deliverSearchResults(results);
@@ -746,34 +749,12 @@ class ClientHandler extends Thread {
         }
     }
 
-    private void deliverWords() {
-        String url = request.getParameter("p");
-        if (url == null) {
-            return;
-        }
-        // resolve object
-        ChmUnitInfo ui = chmFile.resolveObject("/" + url);
-
-        // check to see if file exists
-        if (ui != null) {
-            response.sendHeader("text/plain");
-
-            ByteBuffer buf = chmFile.retrieveObject(ui);
-            String text = ByteBufferHelper.peakAsString(buf, chmFile.getEncoding());
-            ChmIndexEngine parser = new ChmIndexEngine();
-            List<String> words = parser.parse(text);
-            for (String word : words) {
-                response.sendLine(word);
-            }
-        }
-    }
-
     private void deliverBuildIndex() {
-        ChmIndexEngine engine = server.getIndexEngine();
+        final ChmIndexEngine engine = server.getIndexEngine();
         if (engine.getBuildIndexStep() < 0) {
             new Thread() {
                 public void run() {
-                    engine.buildIndex(chmFile, server.getChmFilePath());
+                    engine.buildIndex();
                 }
             }.start();
         }

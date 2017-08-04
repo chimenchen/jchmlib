@@ -29,7 +29,7 @@ import java.io.IOException;
  * Signed values are further encoded using so-called zig-zag encoding
  * in order to make them "compatible" with variable-length encoding.
  */
-@SuppressWarnings({"WeakerAccess", "unused"})
+@SuppressWarnings({"WeakerAccess", "unused", "NumericOverflow"})
 final class Varint {
 
     private Varint() {

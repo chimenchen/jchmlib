@@ -13,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -30,16 +31,20 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
     // private int buildIndexStep = -1;
     private final AtomicReference<Integer> buildIndexStep = new AtomicReference<Integer>(-1);
 
-    private final HashMap<String, DocumentsForWord> wordToDocuments = new HashMap<>();
-    private final HashMap<Integer, String> docIdToUrl = new LinkedHashMap<>();
+    private final HashMap<String, DocumentsForWord> wordToDocuments = new HashMap<String, DocumentsForWord>();
+    private final HashMap<Integer, String> docIdToUrl = new LinkedHashMap<Integer, String>();
     private final Set<String> textExtensions;
+    private final Set<String> highFreqWords = new HashSet<String>();
     private ChmFile chmFile = null;
     private String chmFilePath = "";
 
-    public ChmIndexEngine() {
+    public ChmIndexEngine(ChmFile chmFile, String chmFilePath) {
+        this.chmFile = chmFile;
+        this.chmFilePath = chmFilePath;
+
         wordChars = "$_'";
 
-        textExtensions = new HashSet<>();
+        textExtensions = new HashSet<String>();
         textExtensions.add(".txt");
         textExtensions.add(".htm");
         textExtensions.add(".html");
@@ -69,7 +74,7 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
         }
     }
 
-    public List<String> parse(String origin) {
+    private List<String> parse(String origin) {
         List<String> words = new ArrayList<String>();
 
         ParseState state = ParseState.OUTSIDE_TAGS;
@@ -157,20 +162,23 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
         return false;
     }
 
-    public void buildIndex(ChmFile chmFile, String chmFilePath) {
-        this.chmFile = chmFile;
-        this.chmFilePath = chmFilePath;
+    public void buildIndex() {
+        try {
+            buildIndexWithoutCatch();
+        } catch (Throwable ignored) {
+            LOG.info("Error building index");
+            buildIndexStep.set(-1);
+            wordToDocuments.clear();
+        }
+    }
 
+    private void buildIndexWithoutCatch() {
         if (buildIndexStep.get() >= 0) {
             return;
         }
 
-        try {
-            readIndex();
+        if (readIndex()) {
             return;
-        } catch (Exception ignored) {
-            LOG.fine("Error loading index from file: " + ignored);
-            wordToDocuments.clear();
         }
 
         LOG.info("Building index for " + chmFile.getTitle());
@@ -178,9 +186,10 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
         ChmCollectFilesEnumerator enumerator = new ChmCollectFilesEnumerator();
         chmFile.enumerate(ChmFile.CHM_ENUMERATE_USER, enumerator);
 
-        LOG.info("files count: " + enumerator.files.size());
+        int totalFileCount = enumerator.files.size();
+        LOG.info("files count: " + totalFileCount);
 
-        int perStep = Math.max(enumerator.files.size() / 100, 1);
+        int perStep = Math.max(totalFileCount / 100, 1);
         buildIndexStep.set(0);
 
         int docID = -1;
@@ -189,6 +198,7 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
             filesProcessed++;
             if (filesProcessed % perStep == 0) {
                 buildIndexStep.set(Math.min(buildIndexStep.get() + 1, 99));
+                LOG.info("Building index step " + buildIndexStep.get());
             }
 
             if (!isTextFile(ui)) {
@@ -208,10 +218,15 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
             docID++;
             docIdToUrl.put(docID, ui.getPath());
 
-            HashMap<String, LocationsInDocument> wordToLocations = new HashMap<>();
-            long wordLocation = -1;
+            HashMap<String, LocationsInDocument> wordToLocations;
+            wordToLocations = new HashMap<String, LocationsInDocument>();
+
+            int wordLocation = -1;
             for (String word : words) {
                 wordLocation++;
+                if (word.length() > 16 || stopWords.contains(word)) {
+                    continue;
+                }
                 LocationsInDocument locationsInDocument;
                 if (wordToLocations.containsKey(word)) {
                     locationsInDocument = wordToLocations.get(word);
@@ -219,21 +234,48 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
                     locationsInDocument = new LocationsInDocument(docID, ui);
                     wordToLocations.put(word, locationsInDocument);
                 }
-                locationsInDocument.locations.add(wordLocation);
+                if (!highFreqWords.contains(word)) {
+                    locationsInDocument.locations.add(wordLocation);
+                }
+                locationsInDocument.totalFrequency += 1;
             }
 
-            for (Map.Entry<String, LocationsInDocument> entry : wordToLocations.entrySet()) {
+            for (Entry<String, LocationsInDocument> entry : wordToLocations.entrySet()) {
                 String word = entry.getKey();
                 LocationsInDocument locationsInDocument = entry.getValue();
+
+                if (locationsInDocument.locations.size() > 500) {
+                    locationsInDocument.locations.clear();
+                }
 
                 DocumentsForWord documentsForWord;
                 if (wordToDocuments.containsKey(word)) {
                     documentsForWord = wordToDocuments.get(word);
+
                 } else {
                     documentsForWord = new DocumentsForWord();
                     wordToDocuments.put(word, documentsForWord);
                 }
                 documentsForWord.documents.add(locationsInDocument);
+
+                // ignore locations of high frequency word
+                int wordDocCount = documentsForWord.documents.size();
+                int processedCount = docID + 1;
+                if (wordDocCount > 2000 || (wordDocCount > 200 && (
+                        wordDocCount > totalFileCount * 0.2 &&
+                                wordDocCount >= processedCount * 0.9) || (
+                        wordDocCount > totalFileCount * 0.3 &&
+                                wordDocCount >= processedCount * 0.85) || (
+                        wordDocCount > totalFileCount * 0.4
+                                && wordDocCount >= processedCount * 0.8))) {
+                    // LOG.info(String.format("high frequency %s, %d, %d", word, wordDocCount, docID));
+
+                    for (LocationsInDocument lid : documentsForWord.documents) {
+                        lid.locations.clear();
+                    }
+
+                    highFreqWords.add(word);
+                }
             }
         }
         LOG.info("Finished building index for " + chmFile.getTitle());
@@ -246,18 +288,52 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
         }
     }
 
+    private Set<Integer> getLocations(String targetWord, ChmUnitInfo ui) {
+        Set<Integer> locations = new HashSet<Integer>();
+        String content = chmFile.retrieveObjectAsString(ui);
+        if (content == null || content.length() == 0) {
+            return locations;
+        }
+
+        List<String> words = parse(content);
+        if (words.size() == 0) {
+            return locations;
+        }
+
+        int wordLocation = -1;
+        for (String word : words) {
+            wordLocation++;
+            if (word.equals(targetWord)) {
+                locations.add(wordLocation);
+            }
+        }
+
+        return locations;
+    }
+
     //FIXME: support partial word and title only search
     @Override
     protected List<SearchResult> searchSingleWord(
-            String word, boolean wholeWords, boolean titlesOnly) {
+            String word, boolean wholeWords, boolean titlesOnly, Set<String> lastRunFiles) {
         if (!wordToDocuments.containsKey(word)) {
             return null;
         }
 
-        List<SearchResult> results = new ArrayList<>();
+        List<SearchResult> results = new ArrayList<SearchResult>();
+
         DocumentsForWord documentsForWord = wordToDocuments.get(word);
+
+        if (highFreqWords.contains(word)) {
+            LOG.info(word + " is a high frequency word " + documentsForWord.documents.size());
+        }
+
         for (LocationsInDocument lid : documentsForWord.documents) {
-            results.add(new SearchResult(lid.ui.getPath(), null, lid.locations));
+            String url = lid.ui.getPath();
+            if (lastRunFiles.size() > 0 && !lastRunFiles.contains(url)) {
+                continue;
+            }
+            Set<Integer> locations = lid.locations.size() == 0 ? getLocations(word, lid.ui) : lid.locations;
+            results.add(new SearchResult(url, null, locations, lid.totalFrequency));
         }
 
         return results;
@@ -275,6 +351,7 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
     private String getIndexFilePath() {
         String userHome = System.getProperty("user.home");
         File chmwebDir = new File(userHome, ".chmweb");
+        //noinspection ResultOfMethodCallIgnored
         chmwebDir.mkdirs();
 
         File chm = new File(chmFilePath);
@@ -300,31 +377,33 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
 
         out.writeInt(1); // version
 
+        LOG.fine(String.format("%d documents", docIdToUrl.size()));
         Varint.writeUnsignedVarInt(docIdToUrl.size(), out);
         for (Map.Entry<Integer, String> entry : docIdToUrl.entrySet()) {
             String url = entry.getValue();
-            // Varint.writeUnsignedVarInt(url.length(), out);
             out.writeUTF(url);
         }
+
         Varint.writeUnsignedVarInt(wordToDocuments.size(), out);
         String lastWord = "";
         SortedSet<String> words = new TreeSet<String>(wordToDocuments.keySet());
         for (String word : words) {
             DocumentsForWord documentsForWord = wordToDocuments.get(word);
             int wordPos = getCommonStartLength(lastWord, word);
-            // Varint.writeUnsignedVarInt(word.length() - wordPos, out);
             Varint.writeUnsignedVarInt(wordPos, out);
             out.writeUTF(word.substring(wordPos));
-            LOG.fine(String.format("%s, %d, %s, %d, %d", word, word.length(),
-                    word.substring(wordPos), wordPos, word.length() - wordPos));
             lastWord = word;
+            if (documentsForWord.documents.size() >= docIdToUrl.size() / 2) {
+                LOG.fine(String.format("%s, %d", word, documentsForWord.documents.size()));
+            }
             Varint.writeUnsignedVarInt(documentsForWord.documents.size(), out);
             for (LocationsInDocument lid : documentsForWord.documents) {
                 Varint.writeUnsignedVarInt(lid.docID, out);
+                Varint.writeUnsignedVarInt(lid.totalFrequency, out);
                 Varint.writeUnsignedVarInt(lid.locations.size(), out);
                 int lastLoc = 0;
-                for (Long loc : lid.locations) {
-                    int currentLoc = loc.intValue();
+                for (Integer loc : lid.locations) {
+                    int currentLoc = loc;
                     int relativeLoc = currentLoc - lastLoc;
                     Varint.writeUnsignedVarInt(relativeLoc, out);
                     lastLoc = currentLoc;
@@ -334,14 +413,26 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
         out.close();
     }
 
-    private void readIndex() throws IOException {
+    public boolean readIndex() {
+        try {
+            readIndexWithoutCatch();
+            return true;
+        } catch (Throwable ignored) {
+            LOG.info("Error loading index from file: " + ignored);
+            buildIndexStep.set(-1);
+            wordToDocuments.clear();
+            return false;
+        }
+    }
+
+    private void readIndexWithoutCatch() throws IOException {
         buildIndexStep.set(0);
         String path = getIndexFilePath();
         DataInputStream in = new DataInputStream(new FileInputStream(path));
         int version = in.readInt();
         assert version == 1;
         int docCount = Varint.readUnsignedVarInt(in);
-        for (int docID=0; docID < docCount; docID++) {
+        for (int docID = 0; docID < docCount; docID++) {
             // int urlLen = Varint.readUnsignedVarInt(in);
             String url = in.readUTF();
             LOG.fine("" + docID + ": " + url);
@@ -352,7 +443,7 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
         int perStep = Math.max(wordCount / 100, 1);
 
         String lastWord = "";
-        for (int i=0; i<wordCount; i++) {
+        for (int i = 0; i < wordCount; i++) {
 
             if (i % perStep == 0) {
                 buildIndexStep.set(Math.min(buildIndexStep.get() + 1, 99));
@@ -368,19 +459,28 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
             wordToDocuments.put(word, documentsForWord);
 
             int wordDocCount = Varint.readUnsignedVarInt(in);
-            for (int j=0; j<wordDocCount; j++) {
+            for (int j = 0; j < wordDocCount; j++) {
                 int docID = Varint.readUnsignedVarInt(in);
+
                 String url = docIdToUrl.get(docID);
                 ChmUnitInfo ui = chmFile.resolveObject(url);
+
                 LocationsInDocument locationsInDocument = new LocationsInDocument(docID, ui);
                 documentsForWord.documents.add(locationsInDocument);
+
+                locationsInDocument.totalFrequency = Varint.readUnsignedVarInt(in);
+
                 int locCount = Varint.readUnsignedVarInt(in);
                 int lastLoc = 0;
-                for (int k=0; k<locCount; k++) {
+                for (int k = 0; k < locCount; k++) {
                     int relativeLoc = Varint.readUnsignedVarInt(in);
                     int currentLoc = relativeLoc + lastLoc;
                     lastLoc = currentLoc;
-                    locationsInDocument.locations.add((long)currentLoc);
+                    locationsInDocument.locations.add(currentLoc);
+                }
+
+                if (locationsInDocument.totalFrequency > 0 && locCount == 0) {
+                    highFreqWords.add(word);
                 }
             }
         }
@@ -395,12 +495,14 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
 
         final int docID;
         final ChmUnitInfo ui;
-        final Set<Long> locations;
+        final Set<Integer> locations;
+        int totalFrequency;
 
         LocationsInDocument(int docID, ChmUnitInfo ui) {
             this.docID = docID;
             this.ui = ui;
-            locations = new LinkedHashSet<>();
+            locations = new LinkedHashSet<Integer>();
+            totalFrequency = 0;
         }
     }
 
