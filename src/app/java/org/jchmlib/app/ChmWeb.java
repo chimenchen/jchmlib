@@ -165,6 +165,11 @@ public class ChmWeb extends Thread {
         }
 
         interrupt();
+
+        if (engine != null) {
+            engine.close();
+            engine = null;
+        }
     }
 
     boolean checkRunningFromJar() {
@@ -195,11 +200,7 @@ public class ChmWeb extends Thread {
         if (engine == null) {
             engine = new ChmIndexEngine(chmFile, chmFilePath);
             addStopWordsToIndexEngine();
-            new Thread() {
-                public void run() {
-                    engine.readIndex();
-                }
-            }.start();
+            engine.readIndex();
         }
         return engine;
     }
@@ -759,7 +760,7 @@ class ClientHandler extends Thread {
             }.start();
         }
         response.sendHeader("application/json");
-        response.sendLine(String.format("{step: %d}", engine.getBuildIndexStep()));
+        response.sendLine(String.format("{\"step\": %d}", engine.getBuildIndexStep()));
     }
 
     private void deliverSearch3() {
