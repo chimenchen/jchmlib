@@ -102,7 +102,7 @@ To use `jchmlib` in your project, you can add this to your `build.gradle`
         maven { url "https://jitpack.io" }
    }
    dependencies {
-         compile 'com.github.chimenchen:jchmlib:v0.5.3'
+         compile 'com.github.chimenchen:jchmlib:v0.5.4'
    }
 ```
 

@@ -21,7 +21,7 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.5.3</string>
+    <string>0.5.4</string>
     <key>CFBundleSignature</key>
     <string>????</string>
   <!-- See http://developer.apple.com/library/mac/#releasenotes/General/SubmittingToMacAppStore/_index.html
@@ -39,7 +39,7 @@
     <key>JVMAppClasspath</key>
     <string></string>
     <key>JVMMainJarName</key>
-    <string>ChmWeb-0.5.3.jar</string>
+    <string>ChmWeb-0.5.4.jar</string>
     <key>JVMPreferencesID</key>
     <string>org/jchmlib/app</string>
     <key>JVMOptions</key>
