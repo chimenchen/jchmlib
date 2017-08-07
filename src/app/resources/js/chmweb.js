@@ -189,6 +189,7 @@ var searchInCHM = function (query, use_regex) {
     url: "search.json",
     data: {q: query, regex: use_regex},
     dataType: "json",
+    cache: false,
     /** @namespace data.responseJSON **/
     complete: function (data, status) {
       $("#search-loading").addClass("hidden");
@@ -396,6 +397,7 @@ function loadChmInfo() {
   $.ajax({
     url: "info.json",
     dataType: "json",
+    cache: false,
     /** @namespace data.responseJSON **/
     complete: function (data, status) {
       /** @namespace info.ok **/
@@ -454,6 +456,7 @@ function startBuildIndex() {
   $.ajax({
     url: "index.json",
     dataType: "json",
+    cache: false,
     /** @namespace data.responseJSON **/
     complete: function (data, status) {
       if (status === "success" && data.responseJSON) {
