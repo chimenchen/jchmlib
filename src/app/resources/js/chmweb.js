@@ -430,20 +430,23 @@ function updateBuildIndexStep(step) {
 
   $panel.removeClass("hidden");
 
-  var $button = $("#build-index-button");
+  var $no_index_building = $(".no-index-building");
+  var $index_building = $(".index-building");
   if (step < 0) {
     step = 0;
-    $button.removeClass("hidden");
+    $no_index_building.removeClass("hidden");
+    $index_building.addClass("hidden");
   } else {
-    $button.addClass("hidden");
+    $no_index_building.addClass("hidden");
+    $index_building.removeClass("hidden");
   }
 
   var $step = $("#build-index-step")[0];
-  $step.style.width = step + '%';
+  $step.style.width = (step < 15 ? 15 : step) + '%';
   $step.innerHTML = step + '%';
 
   if (step < 100) {
-    setTimeout(loadChmInfo, 2000);
+    setTimeout(loadChmInfo, 1000);
   }
 }
 

@@ -60,10 +60,15 @@
     </ol>
   </div>
   <div id="build-index-panel" class="hidden">
-    This CHM file has no built-in full-text search index.
-    <input id="build-index-button" type="button" value="Build index"
-             class="hidden" onclick="startBuildIndex()">
-    <div id="build-index-step">20%</div>
+    <div class="no-index-building">
+      This CHM file has no built-in full-text search index.
+      <input id="build-index-button" type="button" value="Build index"
+             onclick="startBuildIndex()">
+    </div>
+    <div class="index-building">
+      Building full-text search index
+      <div id="build-index-step">20%</div>
+    </div>
   </div>
 
 </div>
