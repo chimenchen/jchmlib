@@ -464,6 +464,8 @@ class ClientHandler extends Thread {
             deliverBuildIndex();
         } else if (requestedFile.equalsIgnoreCase("search3.json")) {
             deliverSearch3();
+        } else if (requestedFile.equalsIgnoreCase("info.json")) {
+            deliverInfo();
         } else {
             deliverResource(requestedFile);
         }
@@ -778,6 +780,36 @@ class ClientHandler extends Thread {
 
         HashMap<String, String> results = engine.search(query, true, false, 0);
         deliverSearchResults(results);
+    }
+
+    private void deliverInfo() {
+        response.sendHeader("application/json");
+        if (chmFile == null) {
+            response.sendLine("{\"ok\": false}");
+            return;
+        }
+
+        response.sendLine("{");
+        response.sendLine(String.format("%s: %s,",
+                quoteJSON("title"), quoteJSON(chmFile.getTitle())));
+        response.sendLine(String.format("%s: %s,",
+                quoteJSON("encoding"), quoteJSON(chmFile.getEncoding())));
+        response.sendLine(String.format("%s: %s,",
+                quoteJSON("homeFile"), quoteJSON(chmFile.getHomeFile())));
+
+        ChmIndexSearcher searcher = chmFile.getIndexSearcher();
+        response.sendLine(String.format("%s: %s,",
+                quoteJSON("hasIndex"), !searcher.notSearchable));
+
+        if (searcher.notSearchable) {
+            ChmIndexEngine engine = server.getIndexEngine();
+            response.sendLine(String.format("%s: %d,",
+                    quoteJSON("buildIndexStep"), engine.getBuildIndexStep()));
+        }
+
+        response.sendLine("\"ok\": true");
+
+        response.sendLine("}");
     }
 }
 

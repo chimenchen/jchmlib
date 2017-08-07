@@ -457,6 +457,7 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
             String partitionPath = path + ".0";
             File file1 = new File(partitionPath);
             File file2 = new File(path);
+            //noinspection ResultOfMethodCallIgnored
             file1.renameTo(file2);
             return;
         }

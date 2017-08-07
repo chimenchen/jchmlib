@@ -107,6 +107,7 @@ li.folder.on > ul {
   left: 0;
   right: 0;
   padding: 5px;
+  height: 85px;
   z-index: 998;
   background-color: white;
 }
@@ -145,7 +146,7 @@ li.folder.on > ul {
 }
 
 #search-results {
-  margin-top: 80px;
+  margin-top: 85px;
   padding: 5px 0;
 }
 
@@ -169,6 +170,26 @@ li.folder.on > ul {
 /*noinspection CssUnusedSymbol*/
 #toggle-highlight[data-toggle="on"] {
   background-color: yellow;
+}
+
+#build-index-panel {
+  overflow: hidden;
+  border-top: 1px solid #c0c0c0;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 5px;
+  z-index: 998;
+  background-color: white;
+  font-size: small;
+}
+
+#build-index-step {
+  color: white;
+  background-color: #4CAF50;
+  text-align: center;
+  width: 20%;
 }
 
 h1 {

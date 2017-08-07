@@ -28,6 +28,7 @@ var registerTabOnClick = function () {
 };
 
 var registerSingleFolderToggle = function (folder) {
+  /** @namespace data.responseJSON **/
   $(folder).on("click", function (event) {
     event.stopPropagation();
     if (event.target !== folder) {
@@ -36,6 +37,7 @@ var registerSingleFolderToggle = function (folder) {
     if ($(folder).hasClass("on")) {
       $(folder).removeClass("on");
       if (isIE6()) {
+        //noinspection JSValidateTypes
         $(folder).children("ul").each(function (i, node) {
           $(node).addClass("hidden");
         });
@@ -43,6 +45,7 @@ var registerSingleFolderToggle = function (folder) {
     } else {
       $(folder).addClass("on");
       if (isIE6()) {
+        //noinspection JSValidateTypes
         $(folder).children("ul").each(function (i, node) {
           $(node).removeClass("hidden");
         });
@@ -389,8 +392,83 @@ function resetHighlight() {
   }
 }
 
+function loadChmInfo() {
+  $.ajax({
+    url: "info.json",
+    dataType: "json",
+    /** @namespace data.responseJSON **/
+    complete: function (data, status) {
+      /** @namespace info.ok **/
+      /** @namespace info.hasIndex **/
+      /** @namespace info.buildIndexStep **/
+      var info;
+      if (status === "success" && data.responseJSON) {
+        info = data.responseJSON;
+      } else {
+        info = {ok: false};
+      }
+
+      if (!info.ok) {
+        return;
+      }
+      if (!info.hasIndex) {
+        var step = info.buildIndexStep;
+        updateBuildIndexStep(step);
+      }
+    }
+  });
+
+  // $("#build-index-panel").addClass("hidden");
+}
+
+function updateBuildIndexStep(step) {
+  var $panel = $("#build-index-panel");
+  if (step >= 100) {
+    $panel.addClass("hidden");
+    return;
+  }
+
+  $panel.removeClass("hidden");
+
+  var $button = $("#build-index-button");
+  if (step < 0) {
+    step = 0;
+    $button.removeClass("hidden");
+  } else {
+    $button.addClass("hidden");
+  }
+
+  var $step = $("#build-index-step")[0];
+  $step.style.width = step + '%';
+  $step.innerHTML = step + '%';
+
+  if (step < 100) {
+    setTimeout(loadChmInfo, 2000);
+  }
+}
+
+function startBuildIndex() {
+  $.ajax({
+    url: "index.json",
+    dataType: "json",
+    /** @namespace data.responseJSON **/
+    complete: function (data, status) {
+      if (status === "success" && data.responseJSON) {
+        var result = data.responseJSON;
+        var step = result.step;
+        if (step < 0) {
+          step = 0;
+        }
+        updateBuildIndexStep(step);
+      }
+    }
+  });
+  updateBuildIndexStep(0);
+}
+
 $(document).ready(function () {
   registerTabOnClick();
   loadTopicsTree();
   loadFiles();
+  loadChmInfo();
 });
