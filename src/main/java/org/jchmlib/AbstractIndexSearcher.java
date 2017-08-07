@@ -32,6 +32,10 @@ public abstract class AbstractIndexSearcher {
     protected abstract List<SearchResult> searchSingleWord(
             String word, boolean wholeWords, boolean titlesOnly, Set<String> lastRunFiles);
 
+    protected Set<String> getInitialResults(List<SubQuery> subQueries) {
+        return new HashSet<String>();
+    }
+
     protected abstract void fixTopic(SearchResult result);
 
     @SuppressWarnings("WeakerAccess")
@@ -78,7 +82,7 @@ public abstract class AbstractIndexSearcher {
 
         List<SubQuery> subQueries = splitQuery(originalQuery);
 
-        Set<String> lastRunFiles = new HashSet<String>();
+        Set<String> lastRunFiles = getInitialResults(subQueries);
 
         int subQueryStep = -1;
         for (SubQuery subQuery : subQueries) {
@@ -228,11 +232,11 @@ public abstract class AbstractIndexSearcher {
         }
     }
 
-    class SubQuery {
+    protected class SubQuery {
 
-        final String queryString;
-        final boolean isPhraseStart;
-        boolean isInPhrase;
+        public final String queryString;
+        public final boolean isPhraseStart;
+        public boolean isInPhrase;
 
         public SubQuery(String queryString, boolean isNewWord) {
             this.queryString = queryString;

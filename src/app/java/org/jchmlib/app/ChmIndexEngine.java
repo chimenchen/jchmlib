@@ -6,6 +6,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -337,6 +339,51 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
         return locations;
     }
 
+    protected Set<String> getInitialResults(List<SubQuery> subQueries) {
+        List<String> words = new ArrayList<String>();
+        for (SubQuery subQuery : subQueries) {
+            words.add(subQuery.queryString);
+        }
+
+        Collections.sort(words, new Comparator<String>() {
+            @Override
+            public int compare(String o1, String o2) {
+                return new Integer(loader.getDocCount(o1)).compareTo(loader.getDocCount(o2));
+            }
+        });
+
+        Set<String> results = new HashSet<String>();
+        int subQueryStep = -1;
+        for (String word : words) {
+            subQueryStep++;
+
+            DocumentsForWord documentsForWord = loader.loadDocumentsForWord(word);
+            if (subQueryStep == 0) {
+                if (documentsForWord != null) {
+                    for (LocationsInDocument lid : documentsForWord.documents) {
+                        results.add(lid.url);
+                    }
+                } else {
+                    return results;
+                }
+            } else {
+                if (documentsForWord == null) {
+                    results.clear();
+                    return results;
+                } else {
+                    Set<String> newResults = new HashSet<String>();
+                    for (LocationsInDocument lid : documentsForWord.documents) {
+                        if (results.contains(lid.url)) {
+                            newResults.add(lid.url);
+                        }
+                    }
+                    results = newResults;
+                }
+            }
+        }
+        return results;
+    }
+
     //FIXME: support partial word and title only search
     @Override
     protected List<SearchResult> searchSingleWord(
@@ -580,9 +627,9 @@ public class ChmIndexEngine extends AbstractIndexSearcher {
             if (lastWord.length() > 0 && wordToPostings.containsKey(lastWord)) {
                 WordPostingInfo lastPostingInfo = wordToPostings.get(lastWord);
                 lastPostingInfo.length = out.size() - lastPostingInfo.offset;
-                LOG.fine(String.format("Word %s: %d, %d, docCount=%d",
-                        lastWord, lastPostingInfo.offset, lastPostingInfo.length,
-                        lastPostingInfo.docCount));
+                // LOG.fine(String.format("Word %s: %d, %d, docCount=%d",
+                //         lastWord, lastPostingInfo.offset, lastPostingInfo.length,
+                //         lastPostingInfo.docCount));
             }
         }
 
