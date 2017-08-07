@@ -8,8 +8,11 @@ including a web server (`ChmWeb`) for reading CHM files in web browsers.
 Features:
 * The `jchmlib` is written in Java only, rather than wrapping existing C/C++ library.
   It is easier to get it working on different platforms.
-* Full-text-search (FTS) support if there is the built-in FTS index in CHM file,
-  or fallback to enumeration-based-search by searching through the pages in CHM file if there is no FTS index.
+* Better search support:
+  * full-text-search (FTS) is supported if there is the built-in FTS index in CHM file.
+  * otherwise, FTS index can be generated and searched on.
+  * enumeration-based-search by searching through the pages in CHM file can also be used without FTS index.
+  * Phrase search is supported.
 * Better support for non-English languages, like Chinese, Japanese, Korean.
   *  It will detect CHM file encoding, and can try to fix encoding when it is wrong set in CHM file.
   *  It can show table of contents (topics tree) correctly for non-English files.
@@ -176,3 +179,43 @@ but it requires JDK/JRE to be installed.
 
 The native executables (installers) can now be found in the [releases page](https://github.com/chimenchen/jchmlib/releases) of this project.
 
+## Web UI of `ChmWeb`
+
+On the search tab, search using
+```
+several query words
+```
+will return pages containing all the query words, ignoring cases.
+
+Search using phrase like
+```
+"hello world"
+```
+will return pages containing the phrase.
+Non-word characters (like punctuations) or some stopwords (like "a", "is") are ignored,
+ so it is possible to match pages with phrase "Hello, World".
+ 
+Search using regular expressions (when "Use regex" is checked) is enumeration-based and can be slow.
+You don't have use regular expressions though.
+ Here are some ome typical query strings:
+```
+abc
+abc abc
+"query string" (go)*
+Http[a-zA-Z]*Request\(.*\);
+```
+
+The "Toggle Highlight" button can be used to highlight query words in the page
+ and scroll to the first occurrence.
+But it is not smart enough to handle complex query strings involving regular expressions
+ or to handle the characters and stopwords ignored during search.
+ Sometimes, the occurrences are not highlight as expected.
+ 
+# Authors
+
+* Chen Zhongguo (陈钟国) - Initial work - [chimenchen](https://github.com/chimenchen)
+
+# License
+
+This project is license under Apache License 2.0, 
+see the [LICENSE](LICENSE) file for details.
