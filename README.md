@@ -9,12 +9,12 @@ Features:
 * The `jchmlib` is written in Java only, rather than wrapping existing C/C++ library.
   It is easier to get it working on different platforms.
 * Better search support:
-  * full-text-search (FTS) is supported if there is the built-in FTS index in CHM file.
+  * full-text-search (FTS) is supported if there is built-in FTS index in CHM file.
   * otherwise, FTS index can be generated and searched on.
-  * enumeration-based-search by searching through the pages in CHM file can also be used without FTS index.
+  * enumeration-based search by searching through the pages in CHM file can also be used without FTS index.
   * Phrase search is supported.
 * Better support for non-English languages, like Chinese, Japanese, Korean.
-  *  It will detect CHM file encoding, and can try to fix encoding when it is wrong set in CHM file.
+  *  It will detect CHM file encoding, and can try to fix encoding when it is wrongly set in CHM file.
   *  It can show table of contents (topics tree) correctly for non-English files.
   *  It can also search using non-English search words in non-English files.
 * The `ChmWeb` is a web server for serving CHM files, so that you can read CHM files in your favorite web browser.
@@ -118,14 +118,14 @@ You can start it from command line like:
 ```
 java -jar ChmWeb.jar
 ```
-This will open a swing window.
+This will open a Swing window.
 You can drag and drop CHM files into the window to open them,
 or right click and choose "Open CHM file".
 
 A web server will be started to serve each CHM file,
  and the default web browser will be opened to view the CHM file.
 
-In ChmWeb window, you can double click on a row to open it in browser
+In the ChmWeb window, you can double click on a row to open it in browser
 (or right click and choose "Open in browser").
 
 To close CHM files, right click and choose "Close".
@@ -135,12 +135,12 @@ When you run
 java -jar ChmWeb.jar test.chm
 ```
 
-it will start with the CHM file open.
+it will start and serve the given CHM file.
 Note that, if there is already one instance running,
 the file will be opened in that instance instead.
 
 `ChmWeb` will try to find free ports starting from 50000 to serve CHM files,
-to open a file on a given port, say, 9000, run
+to serve a file on a given port, say, 9000, run
 ```
 java -jar ChmWeb.jar -p 9000 test.chm
 ```
