@@ -197,7 +197,7 @@ Non-word characters (like punctuations) or some stopwords (like "a", "is") are i
  
 Search using regular expressions (when "Use regex" is checked) is enumeration-based and can be slow.
 You don't have use regular expressions though.
- Here are some ome typical query strings:
+ Here are some typical query strings:
 ```
 abc
 abc abc
