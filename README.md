@@ -217,5 +217,5 @@ But it is not smart enough to handle complex query strings involving regular exp
 
 # License
 
-This project is license under Apache License 2.0, 
+This project is licensed under Apache License 2.0, 
 see the [LICENSE](LICENSE) file for details.
